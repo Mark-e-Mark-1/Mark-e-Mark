@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Abstract Painter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="menu-bar">
+        <div class="menu-group">
+          <span class="menu-label">File</span>
+          <div class="menu-dropdown">
+            <button id="btn-new">New</button>
+            <button id="btn-open">Open…</button>
+            <button id="btn-save">Save Project</button>
+            <button id="btn-rename">Rename…</button>
+            <hr />
+            <button id="btn-import-image">Import Image…</button>
+            <label class="menu-check"><input type="checkbox" id="import-as-layer" checked /> As new layer</label>
+            <hr />
+            <button id="btn-export-png">Export PNG</button>
+            <button id="btn-export-jpg">Export JPEG</button>
+            <button id="btn-export-webp">Export WebP</button>
+            <hr />
+            <div id="recent-files" class="recent-files"></div>
+          </div>
+        </div>
+        <div class="menu-group">
+          <span class="menu-label">Canvas</span>
+          <div class="menu-dropdown">
+            <button id="btn-resize">Resize Canvas…</button>
+            <button id="btn-generate-abstract">Generate Abstract Layer</button>
+            <button id="btn-generate-golden">Generate Golden Ratio Layer</button>
+            <button id="btn-generate-seed">Generate Seed of Life Layer</button>
+            <button id="btn-generate-fractal">Generate Fractal Layer</button>
+            <button id="btn-generate-shapes">Generate Shape Layer</button>
+          </div>
+        </div>
+        <div class="menu-group">
+          <span class="menu-label">View</span>
+          <div class="menu-dropdown">
+            <button id="btn-fit">Fit to View</button>
+            <button id="btn-fullscreen">Fullscreen</button>
+          </div>
+        </div>
+        <div class="menu-group">
+          <span class="menu-label">Edit</span>
+          <div class="menu-dropdown">
+            <button id="btn-undo">Undo</button>
+            <button id="btn-redo">Redo</button>
+            <hr />
+            <button id="btn-drawing-filter">Drawing Filter…</button>
+          </div>
+        </div>
+      </div>
+      <a href="../" class="hub-link">All Apps</a>
+      <button type="button" class="app-title" id="doc-title" title="Click to rename">Untitled</button>
+    </header>
+
+    <div class="tool-options" id="tool-options">
+      <label>Size <input type="range" id="opt-brush-size" min="1" max="200" value="24" /> <span id="opt-brush-size-val">24</span></label>
+      <label>Hardness <input type="range" id="opt-hardness" min="0" max="100" value="70" /></label>
+      <label>Opacity <input type="range" id="opt-opacity" min="1" max="100" value="100" /></label>
+      <label id="opt-fill-tolerance-wrap" class="hidden">Tolerance <input type="range" id="opt-fill-tolerance" min="0" max="128" value="32" /> <span id="opt-fill-tolerance-val">32</span></label>
+      <label id="opt-kaleidoscope-wrap" class="hidden">Segments <input type="range" id="opt-kaleidoscope" min="3" max="12" value="6" /> <span id="opt-kaleidoscope-val">6</span></label>
+      <label id="opt-noise-wrap" class="hidden">Noise <input type="range" id="opt-noise" min="1" max="40" value="12" /></label>
+      <label id="opt-shape-fill-wrap" class="hidden"><input type="checkbox" id="opt-shape-fill" /> Fill shape</label>
+      <label id="opt-wet-blend-wrap" class="hidden"><input type="checkbox" id="opt-wet-blend" checked /> Wet blend</label>
+      <label id="opt-mix-strength-wrap" class="hidden">Mix strength <input type="range" id="opt-mix-strength" min="20" max="95" value="65" /> <span id="opt-mix-strength-val">65</span>%</label>
+      <p id="opt-mix-hint" class="tool-hint hidden">Paint two or more colors first, then drag across them to blend.</p>
+      <label id="opt-drip-gravity-wrap" class="hidden">Gravity <input type="range" id="opt-drip-gravity" min="1" max="8" value="3" step="0.5" /></label>
+      <label id="opt-drip-length-wrap" class="hidden">Drip length <input type="range" id="opt-drip-length" min="50" max="800" value="400" step="25" /></label>
+      <label id="opt-smudge-strength-wrap" class="hidden">Smudge <input type="range" id="opt-smudge-strength" min="30" max="100" value="85" /> <span id="opt-smudge-strength-val">85</span>%</label>
+      <label id="opt-splatter-wrap" class="hidden">Density <input type="range" id="opt-splatter" min="5" max="60" value="18" /> <span id="opt-splatter-val">18</span></label>
+      <label id="opt-flow-particles-wrap" class="hidden">Particles <input type="range" id="opt-flow-particles" min="4" max="40" value="12" /></label>
+      <label id="opt-blob-softness-wrap" class="hidden">Softness <input type="range" id="opt-blob-softness" min="5" max="40" value="15" /></label>
+      <label id="opt-circle-complexity-wrap" class="hidden">Complexity <input type="range" id="opt-circle-complexity" min="1" max="10" value="5" /> <span id="opt-circle-complexity-val">5</span></label>
+      <label id="opt-blur-amount-wrap" class="hidden">Blur <input type="range" id="opt-blur-amount" min="2" max="30" value="8" /> <span id="opt-blur-amount-val">8</span>px</label>
+      <label id="opt-sketch-detail-wrap">Drawing detail <input type="range" id="opt-sketch-detail" min="4" max="28" value="12" /> <span id="opt-sketch-detail-val">12</span>px</label>
+      <label id="opt-sketch-color-wrap">Color keep <input type="range" id="opt-sketch-color" min="0" max="100" value="30" /> <span id="opt-sketch-color-val">30</span>%</label>
+      <label id="opt-tone-palette-wrap" class="hidden"><input type="checkbox" id="opt-tone-palette" /> Tint from palette</label>
+    </div>
+
+    <main class="workspace">
+      <aside class="panel tools-panel">
+        <h2>Tools</h2>
+        <section>
+          <h3>Standard</h3>
+          <div class="tool-grid">
+            <button class="tool-btn" data-tool="brush" title="Brush (B)">Brush</button>
+            <button class="tool-btn" data-tool="pencil" title="Pencil (P)">Pencil</button>
+            <button class="tool-btn" data-tool="eraser" title="Eraser (E)">Eraser</button>
+            <button class="tool-btn" data-tool="fill" title="Fill (G)">Fill</button>
+            <button class="tool-btn" data-tool="clear-fill" title="Clear Fill — make area transparent (T)">Clear Fill</button>
+            <button class="tool-btn" data-tool="eyedropper" title="Eyedropper (I)">Pick</button>
+            <button class="tool-btn" data-tool="line">Line</button>
+            <button class="tool-btn" data-tool="rect">Rect</button>
+            <button class="tool-btn" data-tool="ellipse">Ellipse</button>
+            <button class="tool-btn" data-tool="smudge" title="Smudge — drag to push paint">Smudge</button>
+            <button class="tool-btn" data-tool="lighten" title="Lighten — dodge highlights">Lighten</button>
+            <button class="tool-btn" data-tool="darken" title="Darken — burn shadows">Darken</button>
+            <button class="tool-btn" data-tool="move" title="Move layer content">Move</button>
+            <button class="tool-btn" data-tool="blur" title="Blur layer content">Blur</button>
+          </div>
+        </section>
+        <section>
+          <h3>Abstract</h3>
+          <div class="tool-grid">
+            <button class="tool-btn" data-tool="kaleidoscope">Kaleidoscope</button>
+            <button class="tool-btn" data-tool="gradient-flow">Grad Flow</button>
+            <button class="tool-btn" data-tool="noise-smear">Noise Smear</button>
+            <button class="tool-btn" data-tool="flow-field">Flow Field</button>
+            <button class="tool-btn" data-tool="fractal" title="Random full-layer fractal — click active layer">Fractal</button>
+            <button class="tool-btn" data-tool="echo-trail">Echo Trail</button>
+            <button class="tool-btn" data-tool="color-mixer">Color Mix</button>
+            <button class="tool-btn" data-tool="wet-drip">Wet Drip</button>
+            <button class="tool-btn" data-tool="splatter" title="Spray paint dots">Splatter</button>
+            <button class="tool-btn" data-tool="flow-trails" title="Flow-field particle trails">Flow Trails</button>
+            <button class="tool-btn" data-tool="soft-blobs" title="Large soft color blobs">Soft Blobs</button>
+            <button class="tool-btn" data-tool="circle-pattern" title="Random circles and arcs — click or drag">Circle Pattern</button>
+            <button class="tool-btn" id="btn-generate-toolbar" title="Random full-canvas abstract on new layer">Random Gen</button>
+            <button class="tool-btn" id="btn-generate-golden-toolbar" title="Golden ratio abstract on new layer">Golden Gen</button>
+            <button class="tool-btn" id="btn-generate-seed-toolbar" title="Sacred geometry seed of life on new layer">Seed of Life</button>
+            <button class="tool-btn" id="btn-generate-fractal-toolbar" title="Random fractal on new layer">Fractal Gen</button>
+            <button class="tool-btn" id="btn-generate-shapes-toolbar" title="Random geometric shapes on new layer">Shape Gen</button>
+          </div>
+        </section>
+      </aside>
+
+      <div class="canvas-area">
+        <div class="canvas-wrap" id="canvas-wrap">
+          <canvas id="paint-canvas"></canvas>
+        </div>
+      </div>
+
+      <aside class="panel side-panel">
+        <section class="panel-section">
+          <h2>Palette</h2>
+          <div class="color-pair">
+            <input type="color" id="color-primary" value="#e63946" title="Primary" />
+            <button id="swap-colors" title="Swap (X)">⇄</button>
+            <input type="color" id="color-secondary" value="#457b9d" title="Secondary" />
+          </div>
+          <h3>Presets</h3>
+          <div id="palette-presets" class="palette-presets"></div>
+          <div id="swatch-grid" class="swatch-grid"></div>
+          <div class="harmony-btns">
+            <button data-harmony="complementary">Comp</button>
+            <button data-harmony="analogous">Analog</button>
+            <button data-harmony="triadic">Triad</button>
+            <button data-harmony="split">Split</button>
+          </div>
+          <h3>Multi-color</h3>
+          <div class="multicolor-btns">
+            <button data-multicolor="solid" class="active">Solid</button>
+            <button data-multicolor="gradient">Gradient</button>
+            <button data-multicolor="random">Random</button>
+            <button data-multicolor="cycle">Cycle</button>
+            <button data-multicolor="pressure">Speed</button>
+          </div>
+          <p class="hint">Shift+click swatch to multi-select. Alt+click to set secondary. Right-click swatch to edit.</p>
+        </section>
+
+        <section class="panel-section">
+          <h2>Layers</h2>
+          <div class="layer-actions">
+            <button id="layer-add" title="Add layer">+</button>
+            <button id="layer-remove" title="Remove layer">−</button>
+            <button id="layer-up" title="Move up">↑</button>
+            <button id="layer-down" title="Move down">↓</button>
+            <button id="layer-duplicate" title="Duplicate">⧉</button>
+            <button id="layer-merge" title="Merge down">⬇</button>
+          </div>
+          <div class="layer-transform-actions">
+            <button id="layer-blur" title="Blur entire active layer">Blur Layer</button>
+            <button id="layer-drawing" title="Pencil drawing filter on active layer">Drawing</button>
+            <button id="layer-flip-h" title="Flip horizontal">Flip ↔</button>
+            <button id="layer-flip-v" title="Flip vertical">Flip ↕</button>
+            <button id="layer-rotate-cw" title="Rotate 90° clockwise">Rotate ↻</button>
+            <button id="layer-rotate-ccw" title="Rotate 90° counter-clockwise">Rotate ↺</button>
+          </div>
+          <div id="layer-list" class="layer-list"></div>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="status-bar" id="status-bar">Ready</footer>
+  </div>
+
+  <input type="file" id="file-open" accept=".abstract,application/json" hidden />
+  <input type="file" id="file-import-image" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+
+  <dialog id="swatch-color-dialog">
+    <form method="dialog" id="swatch-color-form">
+      <h2>Edit Swatch Color</h2>
+      <p class="dialog-hint">Pick a new color for this swatch.</p>
+      <label class="swatch-color-picker-label">
+        Color
+        <input type="color" id="swatch-color-input" value="#e63946" />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="swatch-color-cancel">Cancel</button>
+        <button type="submit">Apply</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="name-dialog">
+    <form method="dialog" id="name-form">
+      <h2 id="name-dialog-heading">Name Your Project</h2>
+      <p class="dialog-hint" id="name-dialog-hint">Choose a name for your painting. This is used when saving and exporting.</p>
+      <label>Name <input type="text" id="name-input" maxlength="128" placeholder="My Painting" autocomplete="off" required /></label>
+      <p class="name-error hidden" id="name-error">Please enter a project name.</p>
+      <div class="dialog-actions">
+        <button type="button" id="name-cancel">Cancel</button>
+        <button type="submit" id="name-apply">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="resize-dialog">
+    <form method="dialog">
+      <h2>Resize Canvas</h2>
+      <label>Width <input type="number" id="resize-w" value="1920" min="1" max="8192" /></label>
+      <label>Height <input type="number" id="resize-h" value="1080" min="1" max="8192" /></label>
+      <label>Mode
+        <select id="resize-mode">
+          <option value="crop">Crop / Expand (center)</option>
+          <option value="scale">Scale content</option>
+        </select>
+      </label>
+      <div class="preset-btns">
+        <button type="button" data-preset="1920,1080">1920×1080</button>
+        <button type="button" data-preset="1024,1024">1024×1024</button>
+        <button type="button" data-preset="1280,720">1280×720</button>
+        <button type="button" data-preset="2560,1440">2560×1440</button>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" onclick="document.getElementById('resize-dialog').close()">Cancel</button>
+        <button type="submit" id="resize-apply">Apply</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    document.querySelectorAll("[data-preset]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const [w, h] = btn.dataset.preset.split(",");
+        document.getElementById("resize-w").value = w;
+        document.getElementById("resize-h").value = h;
+      });
+    });
+  </script>
+
+  <script src="config.js"></script>
+  <script src="document.js"></script>
+  <script src="history.js"></script>
+  <script src="renderer.js"></script>
+  <script src="palette.js"></script>
+  <script src="layer-transform.js"></script>
+  <script src="layer-filters.js"></script>
+  <script src="tools/base-tool.js"></script>
+  <script src="tools/standard.js"></script>
+  <script src="tools/abstract.js"></script>
+  <script src="ui/canvas-viewport.js"></script>
+  <script src="ui/layers-panel.js"></script>
+  <script src="ui/palette-panel.js"></script>
+  <script src="io.js"></script>
+  <script src="fractals.js"></script>
+  <script src="abstract-generator.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

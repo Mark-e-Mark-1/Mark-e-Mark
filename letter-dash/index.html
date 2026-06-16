@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Letter Dash</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game" width="1280" height="720"></canvas>
+    <div id="overlay">
+      <div class="menu-layout">
+        <div class="menu-panel">
+          <h1>Letter Dash</h1>
+          <p class="menu-tagline">Jump spikes · dodge ceiling spikes · score on letter blocks &amp; platforms</p>
+
+          <label class="level-label">
+            Your name
+            <input id="player-name" type="text" maxlength="20" placeholder="Enter your name" autocomplete="nickname" />
+          </label>
+
+          <label class="level-label">
+            Character
+            <div class="character-picker">
+              <select id="character-select">
+                <option value="rocket">Rocket</option>
+                <option value="jordan">Jordan #23</option>
+              </select>
+              <img
+                id="character-preview"
+                class="character-preview hidden"
+                src="assets/player-jordan.png"
+                alt="Jordan character preview"
+              />
+            </div>
+          </label>
+
+          <label class="level-label">
+            Level
+            <select id="level-select"></select>
+          </label>
+
+          <label class="level-label">
+            Music volume
+            <div class="volume-row">
+              <input id="menu-music-volume" type="range" min="0" max="100" value="50" />
+              <span id="menu-music-volume-label">50%</span>
+            </div>
+          </label>
+
+          <label class="level-label">
+            Sound effects volume
+            <div class="volume-row">
+              <input id="menu-sfx-volume" type="range" min="0" max="100" value="70" />
+              <span id="menu-sfx-volume-label">70%</span>
+            </div>
+          </label>
+
+          <button id="start-btn" class="menu-play">Play</button>
+
+          <div class="menu-util">
+            <button id="fullscreen-btn" class="menu-btn-sm secondary-btn">Fullscreen</button>
+            <a href="editor.html" class="menu-btn-sm link-btn">Editor</a>
+            <a href="../" class="menu-btn-sm link-btn">All Apps</a>
+          </div>
+
+          <details class="menu-help">
+            <summary>How to play</summary>
+            <p>Space / click / tap to jump · hold to glide (rocket only)</p>
+            <p>Right-click or R to toggle reverse scroll · auto-forward again at the start</p>
+            <p>Choose Rocket or Jordan #23 on the menu before you play</p>
+            <p>Green F portal → frog (two mid-air jumps) · blue rocket portal → back to rocket</p>
+            <p>F fullscreen · Esc menu while playing</p>
+            <p>Letters score A=1 through Z=26 on blocks &amp; platforms</p>
+            <p>Yellow bonus smileys are worth 100 points</p>
+            <p>Golden star Super Bonuses are worth 1000 points!</p>
+            <p>Black bombs cost 100 points — avoid them!</p>
+            <p>Orange »» pads speed you up · blue «« pads slow you down</p>
+            <p>Purple ↔ platforms move up and down</p>
+            <p>Teal one-way platforms — jump up through them, land on top</p>
+            <p>Run into Jacob and watch him rocket away — no points, just fun</p>
+            <p>Run into Rowan and she hops straight up, then lands back in place</p>
+          </details>
+        </div>
+
+        <aside id="high-scores-menu" class="menu-scores">
+          <h3>Top 5</h3>
+          <ol id="high-scores-list"></ol>
+        </aside>
+      </div>
+    </div>
+    <div id="hud" class="hidden">
+      <div class="hud-left">
+        <span id="point-score" class="point-score">0 pts</span>
+        <span id="progress" class="progress-tag">0%</span>
+        <span id="level-name" class="level-tag"></span>
+        <span id="reverse-indicator" class="reverse-indicator hidden">◀ REWIND</span>
+      </div>
+      <div class="hud-right">
+        <button id="mute-btn" class="icon-btn">🔊</button>
+        <button id="fullscreen-hud-btn" class="icon-btn" title="Fullscreen">⛶</button>
+        <button id="restart-btn">Restart</button>
+        <button id="quit-btn">Quit</button>
+      </div>
+    </div>
+    <div id="death-screen" class="hidden">
+      <div class="death-panel">
+        <h2>Crash!</h2>
+        <p id="death-score">0 pts</p>
+        <ul id="death-stats" class="death-stats"></ul>
+        <p id="death-highscore" class="death-highscore hidden"></p>
+        <div class="death-actions">
+          <button id="retry-btn">Try Again</button>
+          <button id="menu-btn">Main Menu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="levels.js"></script>
+  <script src="scores.js"></script>
+  <script src="settings.js"></script>
+  <script src="audio.js"></script>
+  <script src="shared.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

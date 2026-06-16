@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Letter Dash — Level Editor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="editor-body">
+  <div class="editor-layout">
+    <header class="editor-header">
+      <h1>Level Editor</h1>
+      <div class="editor-header-links">
+        <a href="index.html" class="link-btn small">← Back to Game</a>
+        <a href="../" class="link-btn small">All Apps</a>
+      </div>
+    </header>
+
+    <div class="editor-topbar">
+      <section class="topbar-section topbar-tools">
+        <h3>Tool</h3>
+        <div class="tool-row" id="tool-grid">
+          <button class="tool active" data-type="select">Select</button>
+          <button class="tool" data-type="spike">Spike</button>
+          <button class="tool tool-ceiling-spike" data-type="ceilingSpike">Ceiling ▼</button>
+          <button class="tool" data-type="block">Block</button>
+          <button class="tool" data-type="platform">Platform</button>
+          <button class="tool tool-one-way" data-type="oneWayPlatform">One-Way</button>
+          <button class="tool tool-moving-platform" data-type="movingPlatform">Move ↔</button>
+          <button class="tool tool-speed-pad" data-type="speedPad">Speed Pad</button>
+          <button class="tool tool-bonus" data-type="bonus">Bonus</button>
+          <button class="tool tool-superbonus" data-type="superbonus">Super ★</button>
+          <button class="tool tool-bomb" data-type="bomb">Bomb</button>
+          <button class="tool tool-jacob" data-type="jacob">Jacob</button>
+          <button class="tool tool-rowan" data-type="rowan">Rowan</button>
+          <button class="tool tool-portal-f" data-type="portalFrog">Portal F</button>
+          <button class="tool tool-portal-r" data-type="portalRocket">Portal 🚀</button>
+          <button class="tool" data-type="gap">Gap</button>
+          <button class="tool" data-type="finish">Finish</button>
+          <button class="tool danger" data-type="erase">Erase</button>
+        </div>
+      </section>
+
+      <section class="topbar-section topbar-actions">
+        <h3>Actions</h3>
+        <div class="action-row">
+          <button id="add-finish">Add Finish</button>
+          <button id="clear-level" class="danger-btn">Clear All</button>
+          <button id="save-level">Save as New</button>
+          <button id="update-level" class="hidden">Update Saved</button>
+          <button id="export-json">Export JSON</button>
+          <button id="import-json-btn">Import JSON</button>
+          <input id="import-json" type="file" accept=".json,application/json" class="hidden" />
+          <button id="test-level" class="primary-btn">Play Test</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="editor-body-grid">
+      <aside class="editor-sidebar">
+        <section>
+          <h3>Load Level</h3>
+          <label>
+            Open level
+            <select id="level-picker">
+              <option value="">— Choose a level —</option>
+            </select>
+          </label>
+          <button id="load-level-btn">Load into Editor</button>
+          <button id="delete-level-btn" class="danger-btn hidden">Delete Saved Level</button>
+          <p class="section-hint">Built-in levels cannot be deleted. Saved custom levels can be removed with Delete Saved Level.</p>
+        </section>
+
+        <section>
+          <h3>Random Generator</h3>
+          <label>
+            Duration (seconds)
+            <input id="gen-duration" type="number" value="45" min="15" max="180" step="5" />
+          </label>
+          <label>
+            Difficulty
+            <select id="gen-difficulty">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+          <button id="generate-level" class="primary-btn">Generate Random Level</button>
+          <p class="section-hint">Creates a playable draft from scratch. Tweak obstacles afterward, then save or play test.</p>
+        </section>
+
+        <section>
+          <h3>Game Settings</h3>
+          <label class="volume-label">
+            Background Music Volume
+            <div class="volume-row">
+              <input id="ed-music-volume" type="range" min="0" max="100" value="50" />
+              <span id="ed-music-volume-label">50%</span>
+            </div>
+          </label>
+          <label class="volume-label">
+            Sound Effects Volume
+            <div class="volume-row">
+              <input id="ed-sfx-volume" type="range" min="0" max="100" value="70" />
+              <span id="ed-sfx-volume-label">70%</span>
+            </div>
+          </label>
+          <p class="section-hint">Applies when playing levels in the game.</p>
+        </section>
+
+        <section>
+          <h3>Level Info</h3>
+          <label>Name <input id="ed-name" type="text" value="My Level" /></label>
+          <label>Music Speed (BPM) <input id="ed-bpm" type="number" value="140" min="80" max="200" /></label>
+          <p class="section-hint">Legacy level metadata — background music uses the MP3 track at the volume above.</p>
+        </section>
+
+        <section>
+          <h3>Letter</h3>
+          <input id="ed-letter" type="text" maxlength="1" value="V" class="letter-input" />
+          <div class="letter-palette" id="letter-palette"></div>
+        </section>
+
+        <section id="props-panel" class="hidden">
+          <h3>Selected</h3>
+          <label>X <input id="prop-x" type="number" step="10" /></label>
+          <label>Height <input id="prop-h" type="number" step="5" /></label>
+          <label>Width <input id="prop-w" type="number" step="5" /></label>
+          <label>Y offset <input id="prop-yoff" type="number" step="5" min="-440" max="-20" /></label>
+          <label>Letter <input id="prop-letter" type="text" maxlength="1" /></label>
+          <label id="prop-move-range-wrap" class="hidden">Move range <input id="prop-move-range" type="number" step="10" min="20" max="240" value="80" /></label>
+          <label id="prop-move-speed-wrap" class="hidden">Move speed <input id="prop-move-speed" type="number" step="0.1" min="0.2" max="4" value="1" /></label>
+          <label id="prop-speed-mult-wrap" class="hidden">Speed × <input id="prop-speed-mult" type="number" step="0.1" min="0.3" max="2.5" value="1.5" /></label>
+          <label id="prop-pad-duration-wrap" class="hidden">Pad duration <input id="prop-pad-duration" type="number" step="10" min="30" max="300" value="90" /></label>
+          <button id="delete-obj" class="danger-btn">Delete</button>
+        </section>
+      </aside>
+
+      <main class="editor-main">
+        <div class="editor-toolbar">
+          <span>Select · Drag to move · Handles to resize · Scroll to pan · Del delete · Ctrl+C copy · Ctrl+V paste · Ctrl+Z undo · Ctrl+Y redo</span>
+          <span id="ed-status">0 objects</span>
+        </div>
+        <canvas id="editor-canvas" width="1280" height="720"></canvas>
+      </main>
+    </div>
+  </div>
+
+  <script src="levels.js"></script>
+  <script src="settings.js"></script>
+  <script src="shared.js"></script>
+  <script src="level-generator.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

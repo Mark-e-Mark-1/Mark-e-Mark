@@ -1,0 +1,103 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #e2e8f0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, #312e81 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, #134e4a 0%, transparent 50%),
+    #0a0a12;
+}
+
+.hub {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 4rem;
+}
+
+.hub-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.hub-header h1 {
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.hub-tagline {
+  margin-top: 0.5rem;
+  color: #94a3b8;
+  font-size: 1.05rem;
+}
+
+.app-grid {
+  list-style: none;
+  display: grid;
+  gap: 1rem;
+}
+
+.app-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 1rem;
+  row-gap: 0.35rem;
+  padding: 1.25rem 1.35rem;
+  border-radius: 14px;
+  background: rgba(18, 18, 31, 0.85);
+  border: 1px solid #1e293b;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+}
+
+.app-card:hover {
+  border-color: #6366f1;
+  background: rgba(30, 27, 75, 0.6);
+  transform: translateY(-2px);
+}
+
+.app-card:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+}
+
+.app-icon {
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.app-name {
+  font-size: 1.15rem;
+  font-weight: 650;
+  color: #f8fafc;
+}
+
+.app-desc {
+  grid-column: 2;
+  font-size: 0.92rem;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.hub-footer {
+  margin-top: 2.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+@media (min-width: 540px) {
+  .app-grid {
+    gap: 1.15rem;
+  }
+}
