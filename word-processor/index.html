@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Word Processor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="menu-bar">
+        <div class="menu-group">
+          <span class="menu-label">File</span>
+          <div class="menu-dropdown">
+            <button id="btn-new">New</button>
+            <button id="btn-open">Open…</button>
+            <button id="btn-save">Save Document</button>
+            <button id="btn-rename">Rename…</button>
+            <hr />
+            <button id="btn-export-txt">Export Plain Text</button>
+            <button id="btn-export-html" title="Open in Microsoft Word, then Save As .docx">Export HTML (best for Word)</button>
+            <button id="btn-print">Print…</button>
+            <hr />
+            <div id="recent-files" class="recent-files"></div>
+          </div>
+        </div>
+        <div class="menu-group">
+          <span class="menu-label">Edit</span>
+          <div class="menu-dropdown">
+            <button id="btn-undo">Undo</button>
+            <button id="btn-redo">Redo</button>
+            <hr />
+            <button id="btn-find">Find &amp; Replace…</button>
+            <button id="btn-select-all">Select All</button>
+            <hr />
+            <button id="btn-insert-date">Insert Date</button>
+            <button id="btn-insert-hr">Insert Horizontal Rule</button>
+            <button id="btn-insert-page-break">Insert Page Break</button>
+          </div>
+        </div>
+        <div class="menu-group">
+          <span class="menu-label">Format</span>
+          <div class="menu-dropdown">
+            <button id="menu-clear-format">Clear Formatting</button>
+            <hr />
+            <button data-menu-style="p">Normal</button>
+            <button data-menu-style="h1">Heading 1</button>
+            <button data-menu-style="h2">Heading 2</button>
+            <button data-menu-style="h3">Heading 3</button>
+          </div>
+        </div>
+        <div class="menu-group">
+          <span class="menu-label">View</span>
+          <div class="menu-dropdown">
+            <button id="btn-zoom-in">Zoom In</button>
+            <button id="btn-zoom-out">Zoom Out</button>
+            <button id="btn-zoom-reset">Reset Zoom</button>
+            <hr />
+            <button id="btn-toggle-outline">Toggle Outline</button>
+            <button id="btn-focus-mode">Focus Mode</button>
+            <button id="btn-page-setup">Page Setup…</button>
+            <button id="btn-fullscreen">Fullscreen</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="app-title" id="doc-title" title="Click to rename">Untitled</button>
+    </header>
+
+    <div class="format-toolbar" id="format-toolbar">
+      <select id="fmt-style" title="Paragraph style">
+        <option value="p">Normal</option>
+        <option value="h1">Heading 1</option>
+        <option value="h2">Heading 2</option>
+        <option value="h3">Heading 3</option>
+      </select>
+      <select id="fmt-font" title="Font family"></select>
+      <select id="fmt-size" title="Font size"></select>
+      <span class="toolbar-divider"></span>
+      <button type="button" id="fmt-bold" class="toolbar-btn" title="Bold (Ctrl+B)"><strong>B</strong></button>
+      <button type="button" id="fmt-italic" class="toolbar-btn" title="Italic (Ctrl+I)"><em>I</em></button>
+      <button type="button" id="fmt-underline" class="toolbar-btn" title="Underline (Ctrl+U)"><u>U</u></button>
+      <button type="button" id="fmt-strike" class="toolbar-btn" title="Strikethrough"><s>S</s></button>
+      <span class="toolbar-divider"></span>
+      <label class="color-btn" title="Text color">
+        <span>A</span>
+        <input type="color" id="fmt-color" value="#1e293b" />
+      </label>
+      <label class="color-btn highlight-btn" title="Highlight color">
+        <span>◼</span>
+        <input type="color" id="fmt-highlight" value="#fef08a" />
+      </label>
+      <span class="toolbar-divider"></span>
+      <button type="button" class="toolbar-btn" data-align="left" title="Align left">≡</button>
+      <button type="button" class="toolbar-btn" data-align="center" title="Align center">≡</button>
+      <button type="button" class="toolbar-btn" data-align="right" title="Align right">≡</button>
+      <button type="button" class="toolbar-btn" data-align="justify" title="Justify">☰</button>
+      <span class="toolbar-divider"></span>
+      <button type="button" id="fmt-bullet" class="toolbar-btn" title="Bullet list">•≡</button>
+      <button type="button" id="fmt-number" class="toolbar-btn" title="Numbered list">1.</button>
+      <button type="button" id="fmt-indent" class="toolbar-btn" title="Indent">→</button>
+      <button type="button" id="fmt-outdent" class="toolbar-btn" title="Outdent">←</button>
+      <button type="button" id="fmt-clear" class="toolbar-btn" title="Clear formatting">✕</button>
+    </div>
+
+    <div class="find-panel hidden" id="find-panel">
+      <label>Find <input type="text" id="find-query" autocomplete="off" spellcheck="false" /></label>
+      <label>Replace <input type="text" id="find-replace-query" autocomplete="off" spellcheck="false" /></label>
+      <div class="find-actions">
+        <button type="button" id="btn-find-prev">Previous</button>
+        <button type="button" id="btn-find-next">Next</button>
+        <button type="button" id="btn-replace-one">Replace</button>
+        <button type="button" id="btn-replace-all">Replace All</button>
+        <span id="find-count" class="find-count">No matches</span>
+        <button type="button" id="btn-find-close" class="find-close">✕</button>
+      </div>
+    </div>
+
+    <main class="workspace">
+      <aside class="panel outline-panel" id="outline-panel">
+        <h2>Outline</h2>
+        <div id="outline-list" class="outline-list"></div>
+      </aside>
+
+      <div class="editor-area" id="editor-area">
+        <div class="page-scroll" id="page-scroll">
+          <div class="page-frame" id="page-frame">
+            <article
+              id="editor"
+              class="doc-editor"
+              contenteditable="true"
+              spellcheck="true"
+              aria-label="Document editor"
+            ></article>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="status-bar" id="status-bar">
+      <span id="status-stats">0 words</span>
+      <span id="status-zoom">100%</span>
+      <span id="status-dirty"></span>
+    </footer>
+  </div>
+
+  <input type="file" id="file-open" accept=".wdoc,application/json" hidden />
+
+  <dialog id="name-dialog">
+    <form method="dialog" id="name-form">
+      <h2 id="name-dialog-heading">Name Your Document</h2>
+      <p class="dialog-hint" id="name-dialog-hint">Choose a name for this document. It is used when saving and exporting.</p>
+      <label>Name <input type="text" id="name-input" maxlength="128" placeholder="My Document" autocomplete="off" required /></label>
+      <p class="name-error hidden" id="name-error">Please enter a document name.</p>
+      <div class="dialog-actions">
+        <button type="button" id="name-cancel">Cancel</button>
+        <button type="submit" id="name-apply">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="page-setup-dialog">
+    <form method="dialog" id="page-setup-form">
+      <h2>Page Setup</h2>
+      <label>Page size
+        <select id="page-size">
+          <option value="letter">US Letter</option>
+          <option value="a4">A4</option>
+          <option value="legal">US Legal</option>
+        </select>
+      </label>
+      <div class="margin-grid">
+        <label>Top margin (px) <input type="number" id="margin-top" min="24" max="240" value="96" /></label>
+        <label>Bottom margin (px) <input type="number" id="margin-bottom" min="24" max="240" value="96" /></label>
+        <label>Left margin (px) <input type="number" id="margin-left" min="24" max="240" value="96" /></label>
+        <label>Right margin (px) <input type="number" id="margin-right" min="24" max="240" value="96" /></label>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="page-setup-cancel">Cancel</button>
+        <button type="submit" id="page-setup-apply">Apply</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="document.js"></script>
+  <script src="history.js"></script>
+  <script src="stats.js"></script>
+  <script src="formatting.js"></script>
+  <script src="io.js"></script>
+  <script src="ui/toolbar.js"></script>
+  <script src="ui/outline-panel.js"></script>
+  <script src="ui/find-panel.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
