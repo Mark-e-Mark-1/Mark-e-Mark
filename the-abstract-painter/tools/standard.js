@@ -460,5 +460,9 @@ const StandardTools = (() => {
     darken: makeToneTool("darken", "color-burn", "#000000"),
     move: MoveTool,
     blur: BlurTool,
+    select: {
+      name: "select",
+      cursor: "crosshair",
+    },
   };
 })();

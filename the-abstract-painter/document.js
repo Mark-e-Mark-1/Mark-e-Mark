@@ -119,6 +119,76 @@ const DocumentModel = (() => {
     return true;
   }
 
+  function clampCropRect(rect, dw, dh) {
+    const x = Math.max(0, Math.min(dw - 1, Math.floor(rect.x)));
+    const y = Math.max(0, Math.min(dh - 1, Math.floor(rect.y)));
+    const w = Math.min(dw - x, Math.max(1, Math.ceil(rect.w)));
+    const h = Math.min(dh - y, Math.max(1, Math.ceil(rect.h)));
+    if (w < 2 || h < 2) return null;
+    return { x, y, w, h };
+  }
+
+  function cropDocument(doc, rect) {
+    const r = clampCropRect(rect, doc.width, doc.height);
+    if (!r) return false;
+    doc.layers.forEach((layer) => {
+      const old = layer.canvas;
+      const newCanvas = document.createElement("canvas");
+      newCanvas.width = r.w;
+      newCanvas.height = r.h;
+      newCanvas.getContext("2d").drawImage(old, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+      layer.canvas = newCanvas;
+    });
+    doc.width = r.w;
+    doc.height = r.h;
+    doc.dirty = true;
+    return true;
+  }
+
+  function cropDocumentWithHistory(doc, rect) {
+    const r = clampCropRect(rect, doc.width, doc.height);
+    if (!r) return false;
+    History.beginCompound(doc);
+    doc.layers.forEach((layer) => {
+      History.addCompoundLayer(doc, layer.id, snapshotLayer(layer));
+    });
+    cropDocument(doc, r);
+    History.commitCompound(doc);
+    return true;
+  }
+
+  function cropLayer(doc, layerId, rect) {
+    const layer = doc.layers.find((l) => l.id === layerId);
+    if (!layer) return false;
+    const r = clampCropRect(rect, doc.width, doc.height);
+    if (!r) return false;
+    const ctx = layer.getCtx();
+    const img = ctx.getImageData(0, 0, doc.width, doc.height);
+    const d = img.data;
+    for (let y = 0; y < doc.height; y++) {
+      for (let x = 0; x < doc.width; x++) {
+        if (x < r.x || x >= r.x + r.w || y < r.y || y >= r.y + r.h) {
+          const i = (y * doc.width + x) * 4;
+          d[i] = d[i + 1] = d[i + 2] = d[i + 3] = 0;
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    doc.dirty = true;
+    return true;
+  }
+
+  function cropLayerWithHistory(doc, layerId, rect) {
+    const layer = doc.layers.find((l) => l.id === layerId);
+    if (!layer || layer.locked) return false;
+    const r = clampCropRect(rect, doc.width, doc.height);
+    if (!r) return false;
+    History.beginStroke(doc, layer.id, snapshotLayer(layer));
+    cropLayer(doc, layerId, r);
+    History.commitStroke(doc);
+    return true;
+  }
+
   function resizeDocument(doc, newW, newH, mode) {
     const oldW = doc.width;
     const oldH = doc.height;
@@ -179,6 +249,11 @@ const DocumentModel = (() => {
     duplicateLayer,
     mergeDown,
     moveLayer,
+    clampCropRect,
+    cropDocument,
+    cropDocumentWithHistory,
+    cropLayer,
+    cropLayerWithHistory,
     resizeDocument,
     compositeToCanvas,
     snapshotLayer,

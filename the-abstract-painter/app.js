@@ -7,6 +7,12 @@ const App = (() => {
   let displayCanvas = null;
   let statusEl = null;
 
+  const generatorPreview = {
+    canvas: null,
+    active: false,
+    namePrefix: "Generated",
+  };
+
   const tools = {
     ...StandardTools,
     ...AbstractTools,
@@ -18,6 +24,8 @@ const App = (() => {
     opacity: CONFIG.DEFAULT_OPACITY,
     flow: CONFIG.DEFAULT_FLOW,
     fillTolerance: 32,
+    selectionMode: "rect",
+    selectionAction: "cut",
     shapeFill: false,
     kaleidoscopeSegments: CONFIG.KALEIDOSCOPE_SEGMENTS.default,
     noiseAmount: 12,
@@ -167,6 +175,7 @@ const App = (() => {
   function createNewDocument() {
     doc = DocumentModel.createDocument();
     History.clear(doc);
+    clearGeneratorPreview();
     CanvasViewport.fitToView(doc.width, doc.height);
     render();
     updateUI();
@@ -208,12 +217,20 @@ const App = (() => {
   }
 
   function setTool(name) {
+    if (activeTool === "select" && name !== "select") {
+      SelectionManager.onToolChange();
+    }
+    if (SelectionManager.hasFloating() && name !== "select") {
+      SelectionManager.commit(getAppContext());
+    }
     activeTool = name;
     document.querySelectorAll("[data-tool]").forEach((b) => {
       b.classList.toggle("active", b.dataset.tool === name);
     });
     const tool = tools[name];
-    displayCanvas.style.cursor = tool ? tool.cursor : "default";
+    let cursor = tool ? tool.cursor : "default";
+    if (SelectionManager.hasFloating()) cursor = "move";
+    displayCanvas.style.cursor = cursor;
     updateToolOptionsPanel();
     updateStatus();
   }
@@ -243,6 +260,7 @@ const App = (() => {
       try {
         doc = await IO.loadProject(file);
         History.clear(doc);
+        clearGeneratorPreview();
         CanvasViewport.fitToView(doc.width, doc.height);
         render();
         updateUI();
@@ -284,11 +302,26 @@ const App = (() => {
     document.getElementById("btn-generate-seed").addEventListener("click", generateSeedOfLifeLayer);
     document.getElementById("btn-generate-fractal").addEventListener("click", generateFractalLayer);
     document.getElementById("btn-generate-shapes").addEventListener("click", generateShapeLayer);
+    document.getElementById("btn-generate-cityscape").addEventListener("click", generateCityscapeLayer);
+    document.getElementById("btn-generate-abstract1").addEventListener("click", generateAbstract1Layer);
+    document.getElementById("btn-generate-abstract2").addEventListener("click", generateAbstract2Layer);
+    document.getElementById("btn-generate-abstract3").addEventListener("click", generateAbstract3Layer);
+    document.getElementById("btn-generate-abstract4").addEventListener("click", generateAbstract4Layer);
+    document.getElementById("btn-generate-abstract5").addEventListener("click", generateAbstract5Layer);
+    document.getElementById("btn-generate-abstract6").addEventListener("click", generateAbstract6Layer);
     document.getElementById("btn-generate-toolbar").addEventListener("click", generateAbstractLayer);
     document.getElementById("btn-generate-golden-toolbar").addEventListener("click", generateGoldenLayer);
     document.getElementById("btn-generate-seed-toolbar").addEventListener("click", generateSeedOfLifeLayer);
     document.getElementById("btn-generate-fractal-toolbar").addEventListener("click", generateFractalLayer);
     document.getElementById("btn-generate-shapes-toolbar").addEventListener("click", generateShapeLayer);
+    document.getElementById("btn-generate-cityscape-toolbar").addEventListener("click", generateCityscapeLayer);
+    document.getElementById("btn-generate-abstract1-toolbar").addEventListener("click", generateAbstract1Layer);
+    document.getElementById("btn-generate-abstract2-toolbar").addEventListener("click", generateAbstract2Layer);
+    document.getElementById("btn-generate-abstract3-toolbar").addEventListener("click", generateAbstract3Layer);
+    document.getElementById("btn-generate-abstract4-toolbar").addEventListener("click", generateAbstract4Layer);
+    document.getElementById("btn-generate-abstract5-toolbar").addEventListener("click", generateAbstract5Layer);
+    document.getElementById("btn-generate-abstract6-toolbar").addEventListener("click", generateAbstract6Layer);
+    document.getElementById("btn-create-generator-layer").addEventListener("click", commitGeneratorPreview);
     document.getElementById("btn-drawing-filter").addEventListener("click", applyDrawingFilter);
     document.getElementById("resize-apply").addEventListener("click", applyResize);
   }
@@ -307,44 +340,124 @@ const App = (() => {
     });
   }
 
-  function addGeneratedLayer(namePrefix, generateFn) {
+  function ensureGeneratorPreview() {
+    if (!generatorPreview.canvas) {
+      generatorPreview.canvas = document.createElement("canvas");
+    }
+    if (generatorPreview.canvas.width !== doc.width || generatorPreview.canvas.height !== doc.height) {
+      generatorPreview.canvas.width = doc.width;
+      generatorPreview.canvas.height = doc.height;
+      generatorPreview.active = false;
+      updateGeneratorPreviewUI();
+    }
+    return generatorPreview.canvas.getContext("2d");
+  }
+
+  function clearGeneratorPreview() {
+    if (generatorPreview.canvas) {
+      generatorPreview.canvas.getContext("2d").clearRect(0, 0, generatorPreview.canvas.width, generatorPreview.canvas.height);
+    }
+    generatorPreview.active = false;
+    updateGeneratorPreviewUI();
+  }
+
+  function updateGeneratorPreviewUI() {
+    const btn = document.getElementById("btn-create-generator-layer");
+    if (btn) btn.disabled = !generatorPreview.active;
+  }
+
+  function previewGenerate(namePrefix, generateFn) {
+    const ctx = ensureGeneratorPreview();
+    ctx.clearRect(0, 0, doc.width, doc.height);
+    generateFn(ctx);
+    generatorPreview.active = true;
+    generatorPreview.namePrefix = namePrefix;
+    render();
+    updateGeneratorPreviewUI();
+  }
+
+  function commitGeneratorPreview() {
+    if (!generatorPreview.active || !generatorPreview.canvas) return;
     const layerNum = doc.layers.length + 1;
-    const layer = DocumentModel.addLayer(doc, namePrefix + " " + layerNum);
+    const layer = DocumentModel.addLayer(doc, generatorPreview.namePrefix + " " + layerNum);
     History.beginStroke(doc, layer.id, DocumentModel.snapshotLayer(layer));
-    generateFn(layer.getCtx());
+    layer.getCtx().drawImage(generatorPreview.canvas, 0, 0);
     History.commitStroke(doc);
+    clearGeneratorPreview();
     doc.dirty = true;
     render();
     updateUI();
   }
 
   function generateAbstractLayer() {
-    addGeneratedLayer("Abstract", (ctx) => {
+    previewGenerate("Abstract", (ctx) => {
       AbstractGenerator.generate(ctx, doc.width, doc.height, Palette.getState());
     });
   }
 
   function generateGoldenLayer() {
-    addGeneratedLayer("Golden", (ctx) => {
+    previewGenerate("Golden", (ctx) => {
       AbstractGenerator.generateGolden(ctx, doc.width, doc.height, Palette.getState());
     });
   }
 
   function generateSeedOfLifeLayer() {
-    addGeneratedLayer("Seed", (ctx) => {
+    previewGenerate("Seed", (ctx) => {
       AbstractGenerator.generateSeedOfLife(ctx, doc.width, doc.height, Palette.getState());
     });
   }
 
   function generateFractalLayer() {
-    addGeneratedLayer("Fractal", (ctx) => {
+    previewGenerate("Fractal", (ctx) => {
       AbstractGenerator.generateFractal(ctx, doc.width, doc.height, Palette.getState());
     });
   }
 
   function generateShapeLayer() {
-    addGeneratedLayer("Shapes", (ctx) => {
+    previewGenerate("Shapes", (ctx) => {
       AbstractGenerator.generateShapes(ctx, doc.width, doc.height, Palette.getState());
+    });
+  }
+
+  function generateCityscapeLayer() {
+    previewGenerate("Cityscape", (ctx) => {
+      AbstractGenerator.generateCityscape(ctx, doc.width, doc.height, Palette.getState());
+    });
+  }
+
+  function generateAbstract1Layer() {
+    previewGenerate("Abstract 1", (ctx) => {
+      AbstractGenerator.generateAbstract1(ctx, doc.width, doc.height, Palette.getState());
+    });
+  }
+
+  function generateAbstract2Layer() {
+    previewGenerate("Abstract 2", (ctx) => {
+      AbstractGenerator.generateAbstract2(ctx, doc.width, doc.height, Palette.getState());
+    });
+  }
+
+  function generateAbstract3Layer() {
+    previewGenerate("Abstract 3", (ctx) => {
+      AbstractGenerator.generateAbstract3(ctx, doc.width, doc.height, Palette.getState());
+    });
+  }
+
+  function generateAbstract4Layer() {
+    previewGenerate("Abstract 4", (ctx) => {
+      AbstractGenerator.generateAbstract4(ctx, doc.width, doc.height, Palette.getState());
+    });
+  }
+
+  function generateAbstract5Layer() {
+    previewGenerate("Abstract 5", (ctx) => {
+      AbstractGenerator.generateAbstract5(ctx, doc.width, doc.height, Palette.getState());
+    });
+  }
+
+  function generateAbstract6Layer() {
+    previewGenerate("Abstract 6", (ctx) => {
+      AbstractGenerator.generateAbstract6(ctx, doc.width, doc.height, Palette.getState());
     });
   }
 
@@ -355,6 +468,7 @@ const App = (() => {
     const mode = document.getElementById("resize-mode").value;
     if (w > 0 && h > 0) {
       DocumentModel.resizeDocument(doc, w, h, mode);
+      clearGeneratorPreview();
       CanvasViewport.fitToView(doc.width, doc.height);
       render();
       updateUI();
@@ -441,6 +555,75 @@ const App = (() => {
       toolOptions.sketchColorKeep = +e.target.value / 100;
       document.getElementById("opt-sketch-color-val").textContent = e.target.value;
     });
+    document.querySelectorAll("[data-selection-mode]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        toolOptions.selectionMode = btn.dataset.selectionMode;
+        document.querySelectorAll("[data-selection-mode]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+    document.querySelectorAll("[data-selection-action]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        toolOptions.selectionAction = btn.dataset.selectionAction;
+        document.querySelectorAll("[data-selection-action]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+    document.getElementById("selection-apply").addEventListener("click", () => {
+      SelectionManager.commit(getAppContext());
+      updateSelectionActions();
+    });
+    document.getElementById("selection-copy").addEventListener("click", () => {
+      SelectionManager.copyToClipboard(getAppContext());
+      updateSelectionActions();
+    });
+    document.getElementById("selection-paste").addEventListener("click", () => {
+      SelectionManager.pasteFromClipboard(getAppContext());
+      updateSelectionActions();
+    });
+    document.getElementById("selection-cancel").addEventListener("click", () => {
+      SelectionManager.cancel(getAppContext());
+      updateSelectionActions();
+    });
+    document.getElementById("selection-crop-canvas").addEventListener("click", () => {
+      if (SelectionManager.crop(getAppContext(), "canvas")) {
+        updateUI();
+        updateSelectionActions();
+      }
+    });
+    document.getElementById("selection-crop-layer").addEventListener("click", () => {
+      if (SelectionManager.crop(getAppContext(), "layer")) {
+        updateUI();
+        updateSelectionActions();
+      }
+    });
+    document.getElementById("btn-crop-canvas").addEventListener("click", () => {
+      if (SelectionManager.crop(getAppContext(), "canvas")) {
+        updateUI();
+        updateSelectionActions();
+      }
+    });
+    document.getElementById("btn-crop-layer").addEventListener("click", () => {
+      if (SelectionManager.crop(getAppContext(), "layer")) {
+        updateUI();
+        updateSelectionActions();
+      }
+    });
+  }
+
+  function updateSelectionActions() {
+    const wrap = document.getElementById("opt-selection-actions-wrap");
+    const pasteBtn = document.getElementById("selection-paste");
+    const showFloating = SelectionManager.hasFloating();
+    const showPaste = SelectionManager.hasClipboard();
+    const showCrop = SelectionManager.canCrop(doc);
+    wrap.classList.toggle("hidden", !showFloating && !showPaste && !showCrop);
+    pasteBtn.classList.toggle("hidden", !showPaste);
+    document.getElementById("selection-crop-canvas").disabled = !showCrop;
+    document.getElementById("selection-crop-layer").disabled = !showCrop;
+    document.getElementById("btn-crop-canvas").disabled = !showCrop;
+    document.getElementById("btn-crop-layer").disabled = !showCrop;
+    updateStatus();
   }
 
   function updateToolOptionsPanel() {
@@ -448,7 +631,13 @@ const App = (() => {
     const shapes = ["line", "rect", "ellipse"];
     document.getElementById("opt-kaleidoscope-wrap").classList.toggle("hidden", activeTool !== "kaleidoscope");
     const fillTools = activeTool === "fill" || activeTool === "clear-fill";
-    document.getElementById("opt-fill-tolerance-wrap").classList.toggle("hidden", !fillTools);
+    document.getElementById("opt-fill-tolerance-wrap").classList.toggle("hidden", !fillTools && activeTool !== "select");
+    document.getElementById("opt-selection-mode-wrap").classList.toggle("hidden", activeTool !== "select");
+    document.getElementById("opt-selection-action-wrap").classList.toggle("hidden", activeTool !== "select");
+    document.getElementById("opt-selection-actions-wrap").classList.toggle(
+      "hidden",
+      !SelectionManager.hasFloating() && !SelectionManager.hasClipboard() && !SelectionManager.canCrop(doc),
+    );
     document.getElementById("opt-noise-wrap").classList.toggle("hidden", activeTool !== "noise-smear");
     document.getElementById("opt-shape-fill-wrap").classList.toggle("hidden", !shapes.includes(activeTool));
     document.getElementById("opt-wet-blend-wrap").classList.toggle("hidden", activeTool !== "gradient-flow");
@@ -494,6 +683,7 @@ const App = (() => {
     displayCanvas.setPointerCapture(e.pointerId);
     const ev = eventToDoc(e);
     lastPressure = ev.pressure || 1;
+    if (SelectionManager.handlePointerDown(ev, getAppContext())) return;
     const layer = DocumentModel.getActiveLayer(doc);
     const tool = tools[activeTool];
     if (tool && tool.onPointerDown) {
@@ -509,6 +699,7 @@ const App = (() => {
     const ev = eventToDoc(e);
     lastPressure = ev.pressure || 1;
     updateStatus(ev.docX, ev.docY);
+    if (SelectionManager.handlePointerMove(ev, getAppContext())) return;
     if (!pointerDown) return;
     const layer = DocumentModel.getActiveLayer(doc);
     const tool = tools[activeTool];
@@ -519,9 +710,13 @@ const App = (() => {
 
   function onPointerUp(e) {
     CanvasViewport.endPan();
+    const ev = eventToDoc(e);
+    if (SelectionManager.handlePointerUp(ev, getAppContext())) {
+      pointerDown = false;
+      return;
+    }
     if (!pointerDown) return;
     pointerDown = false;
-    const ev = eventToDoc(e);
     const layer = DocumentModel.getActiveLayer(doc);
     const tool = tools[activeTool];
     if (tool && tool.onPointerUp) {
@@ -538,9 +733,29 @@ const App = (() => {
         if (e.key === "y") { e.preventDefault(); redo(); }
         if (e.key === "s") { e.preventDefault(); IO.saveProject(doc); }
         if (e.key === "o") { e.preventDefault(); document.getElementById("file-open").click(); }
+        if (e.key === "c" && SelectionManager.hasFloating()) {
+          e.preventDefault();
+          SelectionManager.copyToClipboard(getAppContext());
+          updateSelectionActions();
+        }
+        if (e.key === "v" && SelectionManager.hasClipboard()) {
+          e.preventDefault();
+          SelectionManager.pasteFromClipboard(getAppContext());
+          updateSelectionActions();
+        }
       }
-      const shortcuts = { b: "brush", e: "eraser", g: "fill", t: "clear-fill", i: "eyedropper", p: "pencil", m: "move" };
+      const shortcuts = { b: "brush", e: "eraser", g: "fill", t: "clear-fill", i: "eyedropper", p: "pencil", m: "move", s: "select" };
       if (shortcuts[e.key]) setTool(shortcuts[e.key]);
+      if (e.key === "Enter" && SelectionManager.hasFloating()) {
+        e.preventDefault();
+        SelectionManager.commit(getAppContext());
+      }
+      if (e.key === "Escape") {
+        if (SelectionManager.isActive()) {
+          e.preventDefault();
+          SelectionManager.cancel(getAppContext());
+        }
+      }
       if (e.key === "x") { Palette.swapColors(); PalettePanel.render(); }
       if (e.key === "[") {
         toolOptions.brushSize = Math.max(CONFIG.BRUSH_MIN, toolOptions.brushSize - 2);
@@ -614,6 +829,7 @@ const App = (() => {
         applyLayerEdit((layer) => LayerTransform.rotateLayer(layer, false));
         return;
       case "refresh":
+        updateSelectionActions();
         break;
       case "render":
         render();
@@ -639,29 +855,42 @@ const App = (() => {
   function getAppContext() {
     return {
       doc,
+      activeTool,
       toolOptions,
       getBrushOptions,
       requestRender: render,
       onHistoryChange: updateUI,
+      onSelectionChange: updateSelectionActions,
     };
   }
 
   function render() {
     const composite = Renderer.renderDocument(doc);
     CanvasViewport.drawComposite(composite, doc.width, doc.height);
+    if (generatorPreview.active && generatorPreview.canvas) {
+      displayCanvas.getContext("2d").drawImage(generatorPreview.canvas, 0, 0);
+    }
+    if (SelectionManager.isActive()) {
+      const ctx = displayCanvas.getContext("2d");
+      SelectionManager.drawOverlay(ctx);
+    }
   }
 
   function updateUI() {
     document.getElementById("doc-title").textContent = doc.title;
     document.title = doc.title + " — The Abstract Painter";
     LayersPanel.render(doc);
+    updateToolOptionsPanel();
+    updateGeneratorPreviewUI();
     updateStatus();
   }
 
   function updateStatus(x, y) {
     const zoom = Math.round(CanvasViewport.getZoom() * 100);
     const coords = x !== undefined ? `x: ${Math.floor(x)}  y: ${Math.floor(y)}` : "";
-    statusEl.textContent = `${coords}  |  Zoom: ${zoom}%  |  ${activeTool} ${toolOptions.brushSize}px  |  ${doc.width}×${doc.height}`;
+    const hint = SelectionManager.getStatusHint(getAppContext());
+    const toolLabel = hint || `${activeTool} ${toolOptions.brushSize}px`;
+    statusEl.textContent = `${coords}  |  Zoom: ${zoom}%  |  ${toolLabel}  |  ${doc.width}×${doc.height}`;
   }
 
   function undo() {
