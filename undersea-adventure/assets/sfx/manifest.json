@@ -1,0 +1,102 @@
+{
+  "license": "CC0-1.0 — generated for Side Scroller Creator Kit",
+  "sampleRate": 44100,
+  "sounds": [
+    {
+      "name": "coin",
+      "file": "assets/sfx/coin.wav"
+    },
+    {
+      "name": "collect",
+      "file": "assets/sfx/collect.wav"
+    },
+    {
+      "name": "jump",
+      "file": "assets/sfx/jump.wav"
+    },
+    {
+      "name": "bounce",
+      "file": "assets/sfx/bounce.wav"
+    },
+    {
+      "name": "spring",
+      "file": "assets/sfx/spring.wav"
+    },
+    {
+      "name": "damage",
+      "file": "assets/sfx/damage.wav"
+    },
+    {
+      "name": "hurt",
+      "file": "assets/sfx/hurt.wav"
+    },
+    {
+      "name": "explode",
+      "file": "assets/sfx/explode.wav"
+    },
+    {
+      "name": "shoot",
+      "file": "assets/sfx/shoot.wav"
+    },
+    {
+      "name": "laser",
+      "file": "assets/sfx/laser.wav"
+    },
+    {
+      "name": "powerup",
+      "file": "assets/sfx/powerup.wav"
+    },
+    {
+      "name": "goal",
+      "file": "assets/sfx/goal.wav"
+    },
+    {
+      "name": "win",
+      "file": "assets/sfx/win.wav"
+    },
+    {
+      "name": "level-complete",
+      "file": "assets/sfx/level-complete.wav"
+    },
+    {
+      "name": "game-over",
+      "file": "assets/sfx/game-over.wav"
+    },
+    {
+      "name": "click",
+      "file": "assets/sfx/click.wav"
+    },
+    {
+      "name": "blip",
+      "file": "assets/sfx/blip.wav"
+    },
+    {
+      "name": "confirm",
+      "file": "assets/sfx/confirm.wav"
+    },
+    {
+      "name": "cancel",
+      "file": "assets/sfx/cancel.wav"
+    },
+    {
+      "name": "whoosh",
+      "file": "assets/sfx/whoosh.wav"
+    },
+    {
+      "name": "footstep",
+      "file": "assets/sfx/footstep.wav"
+    },
+    {
+      "name": "checkpoint",
+      "file": "assets/sfx/checkpoint.wav"
+    },
+    {
+      "name": "unlock",
+      "file": "assets/sfx/unlock.wav"
+    },
+    {
+      "name": "warning",
+      "file": "assets/sfx/warning.wav"
+    }
+  ]
+}
