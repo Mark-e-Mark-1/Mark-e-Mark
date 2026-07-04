@@ -3,57 +3,155 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mark-e-Mark Web Apps</title>
-  <link rel="stylesheet" href="hub.css" />
+  <title>Basic Spreadsheet</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="hub">
-    <header class="hub-header">
-      <h1>Mark-e-Mark Web Apps</h1>
-      <p class="hub-tagline">Browser apps — click to open. No install required.</p>
+  <main class="app-shell">
+    <header class="toolbar">
+      <div class="toolbar-brand">
+        <h1>Spreadsheet</h1>
+      </div>
+      <div class="toolbar-actions">
+        <button id="save-local" type="button">Save</button>
+        <button id="load-local" type="button">Load</button>
+        <button id="export-json" type="button">Export</button>
+        <label class="file-button">
+          Import
+          <input id="import-json" type="file" accept="application/json,.json" hidden />
+        </label>
+        <button id="help-me" type="button">Help Me</button>
+      </div>
+      <div class="format-controls">
+        <label class="format-control-label" for="font-size">
+          Size
+          <select id="font-size" aria-label="Font size"></select>
+        </label>
+        <button id="toggle-bold" type="button" class="format-bold-button" aria-pressed="false" aria-label="Bold">B</button>
+      </div>
+      <div class="formula-bar">
+        <label class="formula-bar-label" for="formula-input">fx</label>
+        <input
+          id="formula-input"
+          class="formula-input"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+          aria-label="Formula bar"
+        />
+      </div>
     </header>
 
-    <ul class="app-grid">
-      <li>
-        <a class="app-card" href="letter-dash/">
-          <span class="app-icon" aria-hidden="true">🚀</span>
-          <span class="app-name">Letter Dash</span>
-          <span class="app-desc">Geometry Dash–style letter platformer with a level editor.</span>
-        </a>
-      </li>
-      <li>
-        <a class="app-card" href="the-abstract-painter/">
-          <span class="app-icon" aria-hidden="true">🎨</span>
-          <span class="app-name">The Abstract Painter</span>
-          <span class="app-desc">Layered painting studio with abstract generators and fractals.</span>
-        </a>
-      </li>
-	   <li>
-        <a class="app-card" href="word-processor/">
-          <span class="app-icon" aria-hidden="true">W</span>
-          <span class="app-name">Word Processor</span>
-          <span class="app-desc">Simple Word Processor</span>
-        </a>
-      </li>
-	   <li>
-        <a class="app-card" href="basic-spreadsheet/">
-          <span class="app-icon" aria-hidden="true">S</span>
-          <span class="app-name">Basic Spreadsheet</span>
-          <span class="app-desc">Just a Basic Spreadsheet</span>
-        </a>
-      </li>
-	  <li>
-        <a class="app-card" href="undersea-adventure/">
-          <span class="app-icon" aria-hidden="true">U</span>
-          <span class="app-name">Undersea Adventure</span>
-          <span class="app-desc">Undersea Adventure side scroller game</span>
-        </a>
-      </li>  
-    </ul>
-
-    <footer class="hub-footer">
-      <p>More apps can be added here as new folders and links.</p>
-    </footer>
+    <div class="grid-scroll">
+      <div id="grid" class="grid-mount" role="grid" aria-label="Spreadsheet grid"></div>
+    </div>
   </main>
+
+  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title">
+    <div class="help-dialog-inner">
+      <header class="help-header">
+        <h2 id="help-title">Spreadsheet Help</h2>
+        <button id="help-close" type="button" class="help-close" aria-label="Close help">Close</button>
+      </header>
+
+      <div class="help-body">
+        <section class="help-section">
+          <h3>Features</h3>
+          <ul>
+            <li>26 columns (A–Z) and 100 rows with sticky headers</li>
+            <li>Click or arrow keys to select cells; type to edit</li>
+            <li>Formula bar for values and formulas (starts with <code>=</code>)</li>
+            <li>Formulas: <code>SUM</code>, <code>AVERAGE</code>, <code>MIN</code>, <code>MAX</code>, and basic math</li>
+            <li>Drag the right edge of a column header to resize it</li>
+            <li>Format selected cells with the Size dropdown and Bold button</li>
+            <li>Select multiple cells by dragging or Shift+click / Shift+arrow keys</li>
+            <li>Copy, cut, and paste cell ranges with Ctrl+C, Ctrl+X, and Ctrl+V</li>
+            <li>Dependent cells recalculate automatically when inputs change</li>
+            <li>Save / Load to browser storage; Export / Import JSON files</li>
+            <li>Undo and redo for cell edits</li>
+          </ul>
+        </section>
+
+        <section class="help-section">
+          <h3>Keyboard shortcuts</h3>
+          <dl class="help-shortcuts">
+            <div><dt>Enter</dt><dd>Commit and move down</dd></div>
+            <div><dt>Tab</dt><dd>Commit and move right</dd></div>
+            <div><dt>Escape</dt><dd>Cancel edit</dd></div>
+            <div><dt>F2</dt><dd>Edit selected cell</dd></div>
+            <div><dt>Delete</dt><dd>Clear selected cells</dd></div>
+            <div><dt>Ctrl+C</dt><dd>Copy selection</dd></div>
+            <div><dt>Ctrl+V</dt><dd>Paste starting at active cell</dd></div>
+            <div><dt>Ctrl+X</dt><dd>Cut selection</dd></div>
+            <div><dt>Shift+click</dt><dd>Extend selection</dd></div>
+            <div><dt>Shift+arrows</dt><dd>Extend selection</dd></div>
+            <div><dt>Arrow keys</dt><dd>Move selection</dd></div>
+            <div><dt>Ctrl+Z</dt><dd>Undo</dd></div>
+            <div><dt>Ctrl+Y</dt><dd>Redo</dd></div>
+          </dl>
+        </section>
+
+        <section class="help-section">
+          <h3>Examples</h3>
+          <p>Try these in your sheet:</p>
+          <table class="help-examples">
+            <thead>
+              <tr>
+                <th>Cell</th>
+                <th>Enter this</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A1</td>
+                <td><code>10</code></td>
+                <td>Plain number</td>
+              </tr>
+              <tr>
+                <td>A2</td>
+                <td><code>20</code></td>
+                <td>Plain number</td>
+              </tr>
+              <tr>
+                <td>A3</td>
+                <td><code>=SUM(A1:A2)</code></td>
+                <td><code>30</code></td>
+              </tr>
+              <tr>
+                <td>B1</td>
+                <td><code>=A1+A2</code></td>
+                <td><code>30</code></td>
+              </tr>
+              <tr>
+                <td>B2</td>
+                <td><code>=AVERAGE(A1:A2)</code></td>
+                <td><code>15</code></td>
+              </tr>
+              <tr>
+                <td>B3</td>
+                <td><code>=A1*2</code></td>
+                <td><code>20</code></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="help-note">Formulas must start with <code>=</code>. Use cell references like <code>A1</code> and ranges like <code>A1:A5</code>.</p>
+        </section>
+
+        <section class="help-section">
+          <h3>Support</h3>
+          <ul>
+            <li>Runs entirely in your browser — no account or server required</li>
+            <li>Use <strong>Save</strong> to store your workbook in this browser; <strong>Load</strong> restores it</li>
+            <li>Use <strong>Export</strong> to download a JSON backup; <strong>Import</strong> to open one</li>
+            <li>Formula errors show in red: <code>#REF!</code> (bad reference), <code>#ERROR!</code> (invalid formula), <code>#CYCLE!</code> (circular reference)</li>
+            <li>Run locally with <code>start.bat</code> or <code>npm run serve</code>, then open <code>http://localhost:3000</code></li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
