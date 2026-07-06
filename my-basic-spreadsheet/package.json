@@ -1,0 +1,10 @@
+{
+  "name": "spreadsheet",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Basic browser spreadsheet",
+  "scripts": {
+    "serve": "node scripts/dev-server.mjs"
+  }
+}
