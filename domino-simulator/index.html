@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Domino Simulator</title>
+    <script type="module" crossorigin src="/domino-simulator/assets/index-C0FNhpa7.js"></script>
+    <link rel="stylesheet" crossorigin href="/domino-simulator/assets/index-PMBLvDl4.css">
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="canvas"></canvas>
+      <div id="ui">
+        <header>
+          <h1>Domino Simulator</h1>
+          <span id="mode-badge">Setup</span>
+        </header>
+        <div id="toolbar">
+          <button class="tool-btn active" data-tool="place" title="Place domino (1)">Place</button>
+          <button class="tool-btn" data-tool="line" title="Line tool (2)">Line</button>
+          <button class="tool-btn" data-tool="curve" title="Curve tool (3)">Curve</button>
+          <button class="tool-btn" data-tool="delete" title="Delete domino (4)">Delete</button>
+        </div>
+        <div id="curve-actions" class="hidden">
+          <button id="btn-curve-finish">Finish Curve (Enter)</button>
+          <button id="btn-curve-cancel">Cancel (Esc)</button>
+        </div>
+        <div id="actions">
+          <button id="btn-play" class="primary">▶ Play</button>
+          <button id="btn-reset">↺ Reset</button>
+          <div class="row play-only">
+            <button id="btn-slowmo" title="Slow motion (S)">🐌 Slow-Mo</button>
+            <button id="btn-cinematic" title="Toggle auto camera (C)">🎥 Auto</button>
+          </div>
+          <p id="shot-label" class="hint play-only">Camera: Wide</p>
+          <div class="row">
+            <button id="btn-undo" title="Ctrl+Z">↶ Undo</button>
+            <button id="btn-redo" title="Ctrl+Y">↷ Redo</button>
+          </div>
+          <button id="btn-clear">Clear All</button>
+        </div>
+        <div id="info">
+          <p>Dominoes: <span id="domino-count">0</span></p>
+          <p class="hint">Scroll to zoom · Drag to orbit · Right-click to pan</p>
+          <p class="hint setup-hint">Curve: click waypoints, Enter to build</p>
+          <p class="hint play-only">1–6 cameras · C auto · S slow-mo · M orbit</p>
+        </div>
+      </div>
+
+      <div id="library">
+        <header>
+          <h2>Layouts</h2>
+          <button id="btn-library-toggle" title="Show/hide layouts">▾</button>
+        </header>
+        <div id="library-body">
+          <div class="save-row">
+            <input id="layout-name" type="text" placeholder="Layout name…" maxlength="40" />
+            <button id="btn-save">Save</button>
+          </div>
+          <h3>Samples</h3>
+          <ul id="sample-list"></ul>
+          <h3>My Layouts</h3>
+          <ul id="saved-list"></ul>
+          <p id="no-saved" class="hint">Nothing saved yet.</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
