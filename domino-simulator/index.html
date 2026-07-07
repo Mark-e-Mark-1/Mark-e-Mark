@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Domino Simulator</title>
-    <script type="module" crossorigin src="/Mark-e-Mark/domino-simulator/assets/index-C0FNhpa7.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/domino-simulator/assets/index-PMBLvDl4.css">
+    <script type="module" crossorigin src="/Mark-e-Mark/domino-simulator/assets/index-fKLZz7Ge.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/domino-simulator/assets/index-BHYn5cKZ.css">
   </head>
   <body>
     <div id="app">
@@ -38,10 +38,11 @@
             <button id="btn-redo" title="Ctrl+Y">↷ Redo</button>
           </div>
           <button id="btn-clear">Clear All</button>
+          <button id="btn-fullscreen" title="Full screen (F)">⛶ Full Screen</button>
         </div>
         <div id="info">
           <p>Dominoes: <span id="domino-count">0</span></p>
-          <p class="hint">Scroll to zoom · Drag to orbit · Right-click to pan</p>
+          <p class="hint">Scroll to zoom · Drag to orbit · Right-click to pan · F full screen</p>
           <p class="hint setup-hint">Curve: click waypoints, Enter to build</p>
           <p class="hint play-only">1–6 cameras · C auto · S slow-mo · M orbit</p>
         </div>
@@ -64,6 +65,7 @@
           <p id="no-saved" class="hint">Nothing saved yet.</p>
         </div>
       </div>
+      <button id="btn-fullscreen-hud" class="fullscreen-hud play-only" type="button" title="Full screen (F)">⛶</button>
     </div>
   </body>
 </html>
