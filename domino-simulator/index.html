@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Domino Simulator</title>
-    <script type="module" crossorigin src="/Mark-e-Mark/domino-simulator/assets/index-fKLZz7Ge.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/domino-simulator/assets/index-BHYn5cKZ.css">
+    <script type="module" crossorigin src="/Mark-e-Mark/domino-simulator/assets/index-DJ8sEFGB.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/domino-simulator/assets/index-CegbL3FH.css">
   </head>
   <body>
     <div id="app">
@@ -20,6 +20,7 @@
           <button class="tool-btn" data-tool="line" title="Line tool (2)">Line</button>
           <button class="tool-btn" data-tool="curve" title="Curve tool (3)">Curve</button>
           <button class="tool-btn" data-tool="delete" title="Delete domino (4)">Delete</button>
+          <button class="tool-btn" data-tool="trigger" title="Set start domino (5)">Start</button>
         </div>
         <div id="curve-actions" class="hidden">
           <button id="btn-curve-finish">Finish Curve (Enter)</button>
@@ -44,9 +45,16 @@
           <p>Dominoes: <span id="domino-count">0</span></p>
           <p class="hint">Scroll to zoom · Drag to orbit · Right-click to pan · F full screen</p>
           <p class="hint setup-hint">Curve: click waypoints, Enter to build</p>
+          <p class="hint setup-hint">Start: click a domino to choose where the chain begins</p>
           <p class="hint play-only">1–6 cameras · C auto · S slow-mo · M orbit</p>
         </div>
       </div>
+
+      <div id="fall-counter" class="play-only" aria-live="polite">
+        <span id="fallen-count">0</span><span class="fall-sep">/</span><span id="fallen-total">0</span>
+        <span class="fall-label">fallen</span>
+      </div>
+      <p id="hud-hint" class="play-only">Move mouse for controls · R to reset</p>
 
       <div id="library">
         <header>
