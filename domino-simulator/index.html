@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Domino Simulator</title>
-    <script type="module" crossorigin src="/Mark-e-Mark/domino-simulator/assets/index--adG0bIH.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/domino-simulator/assets/index-CxA0acRF.css">
+    <script type="module" crossorigin src="/Mark-e-Mark/domino-simulator/assets/index-DXe-FdRJ.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/domino-simulator/assets/index-X7LCcEP7.css">
   </head>
   <body>
     <div id="app">
@@ -19,8 +19,15 @@
           <button class="tool-btn active" data-tool="place" title="Place domino (1)">Place</button>
           <button class="tool-btn" data-tool="line" title="Line tool (2)">Line</button>
           <button class="tool-btn" data-tool="curve" title="Curve tool (3)">Curve</button>
+          <button class="tool-btn" data-tool="circle" title="Circle tool (6)">Circle</button>
+          <button class="tool-btn" data-tool="rectangle" title="Rectangle tool (7)">Rectangle</button>
           <button class="tool-btn" data-tool="delete" title="Delete domino (4)">Delete</button>
           <button class="tool-btn" data-tool="trigger" title="Set start domino / flip direction (5)">Start</button>
+        </div>
+        <div id="effects" class="setup-only">
+          <p class="effects-label">Special effects</p>
+          <div id="effect-buttons" class="effects-row"></div>
+          <p class="hint setup-hint">Select an effect, click a domino, or draw a rectangle on the table to apply in bulk</p>
         </div>
         <div id="curve-actions" class="hidden">
           <button id="btn-curve-finish">Finish Curve (Enter)</button>
@@ -43,10 +50,11 @@
         </div>
         <div id="info">
           <p>Dominoes: <span id="domino-count">0</span></p>
-          <p class="hint">Scroll to zoom · Drag to orbit · Right-click to pan · F full screen</p>
+          <p class="hint setup-hint">Scroll to zoom · Right-drag to pan · F full screen</p>
+          <p class="hint setup-hint">Line / circle / rectangle: click start, drag, click end</p>
           <p class="hint setup-hint">Curve: click waypoints, Enter to build</p>
-          <p class="hint setup-hint">Start: click a domino to begin · click again to flip direction</p>
-          <p class="hint play-only">Tour: 1→2→3 · T tour · C auto · M free · 1–6 shots</p>
+          <p class="hint setup-hint">Start: click a domino to set start · click again to flip direction · D flips direction</p>
+          <p class="hint play-only">Default: camera 2 · T cam 2 · C auto · M free · 1–6 shots</p>
         </div>
       </div>
 
