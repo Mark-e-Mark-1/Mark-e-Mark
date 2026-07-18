@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Domino Simulator</title>
-    <script type="module" crossorigin src="/Mark-e-Mark/domino-simulator/assets/index-DXe-FdRJ.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/domino-simulator/assets/index-X7LCcEP7.css">
+    <script type="module" crossorigin src="/Mark-e-Mark/domino-simulator/assets/index-eSrZkRha.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/domino-simulator/assets/index-BWQuLFyj.css">
   </head>
   <body>
     <div id="app">
@@ -22,7 +22,10 @@
           <button class="tool-btn" data-tool="circle" title="Circle tool (6)">Circle</button>
           <button class="tool-btn" data-tool="rectangle" title="Rectangle tool (7)">Rectangle</button>
           <button class="tool-btn" data-tool="delete" title="Delete domino (4)">Delete</button>
-          <button class="tool-btn" data-tool="trigger" title="Set start domino / flip direction (5)">Start</button>
+          <button class="tool-btn" data-tool="trigger" title="Choose start domino and push direction (5)">Change Start</button>
+        </div>
+        <div id="setup-camera" class="setup-only">
+          <button id="btn-layout-camera" type="button" title="Switch to free 3D camera">📷 Fixed</button>
         </div>
         <div id="effects" class="setup-only">
           <p class="effects-label">Special effects</p>
@@ -50,10 +53,10 @@
         </div>
         <div id="info">
           <p>Dominoes: <span id="domino-count">0</span></p>
-          <p class="hint setup-hint">Scroll to zoom · Right-drag to pan · F full screen</p>
+          <p id="layout-camera-hint" class="hint setup-hint">Scroll to zoom · Right-drag to pan · F full screen</p>
           <p class="hint setup-hint">Line / circle / rectangle: click start, drag, click end</p>
           <p class="hint setup-hint">Curve: click waypoints, Enter to build</p>
-          <p class="hint setup-hint">Start: click a domino to set start · click again to flip direction · D flips direction</p>
+          <p class="hint setup-hint">Change Start: click a domino · click again to flip direction · D flips direction</p>
           <p class="hint play-only">Default: camera 2 · T cam 2 · C auto · M free · 1–6 shots</p>
         </div>
       </div>
