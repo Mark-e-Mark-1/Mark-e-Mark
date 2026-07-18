@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cosmos Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/Mark-e-Mark/cosmos-explorer/assets/index-DrCOtvbA.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/cosmos-explorer/assets/index-6H_LsU9k.css">
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="canvas"></canvas>
+
+      <div id="title-overlay" class="title-overlay">
+        <div class="title-card">
+          <p class="title-eyebrow">Procedural universe</p>
+          <h1>Cosmos Explorer</h1>
+          <p class="title-sub">
+            Free-flight through a stylized solar system — select worlds, warp between them, and
+            explore at any scale.
+          </p>
+          <button id="btn-enter" type="button" class="primary">Enter Space</button>
+          <p class="title-hint">Click to capture mouse · Esc to release</p>
+        </div>
+      </div>
+
+      <div id="hud" class="hud hidden">
+        <header class="hud-brand">
+          <span class="brand-mark">CE</span>
+          <div>
+            <h1>Cosmos Explorer</h1>
+            <p id="system-name">Sol System</p>
+          </div>
+        </header>
+
+        <div class="right-rail">
+        <aside id="body-panel" class="body-panel hidden">
+          <p class="panel-label">Selected body</p>
+          <h2 id="body-name">—</h2>
+          <dl id="body-stats"></dl>
+          <div class="body-actions">
+            <button id="btn-warp" type="button" class="primary">Warp to body</button>
+            <button id="btn-orbit" type="button" class="secondary">Lock orbit</button>
+            <button id="btn-land" type="button" class="secondary" disabled>Land (H)</button>
+          </div>
+        </aside>
+
+        </div>
+
+        <div class="top-tools" aria-label="Toolbar">
+          <button
+            id="btn-starfield"
+            type="button"
+            class="display-toggle"
+            title="Toggle starfield (I)"
+            aria-pressed="true"
+          >
+            Starfield
+          </button>
+          <button
+            id="btn-asteroids"
+            type="button"
+            class="display-toggle"
+            title="Toggle asteroid belt (B)"
+            aria-pressed="false"
+          >
+            Asteroids
+          </button>
+          <button
+            id="btn-bridge"
+            type="button"
+            class="display-toggle"
+            title="Spaceship view / free camera (J)"
+            aria-pressed="false"
+          >
+            Spaceship
+          </button>
+          <button
+            id="btn-sound-panel"
+            type="button"
+            class="display-toggle"
+            title="Open sound settings"
+            aria-expanded="false"
+            aria-controls="audio-panel"
+          >
+            Sound
+          </button>
+          <button
+            id="btn-explore-panel"
+            type="button"
+            class="display-toggle"
+            title="Explore tours and bookmarks"
+            aria-expanded="false"
+            aria-controls="explore-panel"
+          >
+            Explore
+          </button>
+          <button
+            id="btn-speed-panel"
+            type="button"
+            class="display-toggle"
+            title="System speed"
+            aria-expanded="false"
+            aria-controls="time-panel"
+          >
+            Speed
+          </button>
+          <button
+            id="btn-ephemeris-panel"
+            type="button"
+            class="display-toggle"
+            title="Set Sol planet positions by date"
+            aria-expanded="false"
+            aria-controls="ephemeris-panel"
+          >
+            Set Date
+          </button>
+          <button
+            id="btn-controls-panel"
+            type="button"
+            class="display-toggle"
+            title="Keyboard controls and shortcuts"
+            aria-expanded="false"
+            aria-controls="controls-panel"
+          >
+            Controls/Shortcuts
+          </button>
+        </div>
+
+        <aside id="audio-panel" class="popup-panel audio-panel hidden" aria-label="Audio" role="dialog">
+          <div class="audio-panel-header">
+            <p class="panel-label">Audio</p>
+            <button id="btn-audio-close" type="button" class="audio-panel-close" title="Close">
+              ×
+            </button>
+          </div>
+
+          <div class="audio-channel">
+            <button
+              id="btn-audio"
+              type="button"
+              class="display-toggle"
+              title="Toggle sound effects (M)"
+              aria-pressed="false"
+            >
+              Sound FX off
+            </button>
+            <label class="audio-volume">
+              <span class="audio-volume-label">SFX volume</span>
+              <input
+                id="sfx-volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.5"
+                aria-label="Sound effects volume"
+              />
+            </label>
+          </div>
+
+          <div class="audio-channel">
+            <button
+              id="btn-music"
+              type="button"
+              class="display-toggle"
+              title="Toggle music"
+              aria-pressed="true"
+            >
+              Music on
+            </button>
+            <label class="audio-volume">
+              <span class="audio-volume-label">Music volume</span>
+              <input
+                id="music-volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.08"
+                aria-label="Music volume"
+              />
+            </label>
+          </div>
+        </aside>
+
+        <aside id="explore-panel" class="popup-panel explore-panel hidden" aria-label="Tour and bookmarks" role="dialog">
+          <div class="popup-panel-header">
+            <p class="panel-label">Explore</p>
+            <button id="btn-explore-close" type="button" class="popup-panel-close" title="Close">
+              ×
+            </button>
+          </div>
+          <div class="explore-actions">
+            <button id="btn-tour" type="button" class="explore-btn" title="Sol cinematic tour (C)">
+              Sol tour
+            </button>
+            <button
+              id="btn-star-tour"
+              type="button"
+              class="explore-btn"
+              title="Tour five star systems"
+            >
+              Star systems tour
+            </button>
+            <button
+              id="btn-galaxy"
+              type="button"
+              class="explore-btn"
+              title="Leave the Milky Way to see it among other galaxies"
+            >
+              Leave Milky Way
+            </button>
+            <button id="btn-bookmark-save" type="button" class="explore-btn" title="Save view (V)">
+              Save view
+            </button>
+          </div>
+          <p class="panel-label bookmarks-label">Bookmarks</p>
+          <ul id="bookmark-list" class="bookmark-list"></ul>
+          <p id="bookmark-empty" class="bookmark-empty">No saved views yet</p>
+        </aside>
+
+        <aside id="time-panel" class="popup-panel time-panel hidden" aria-label="Solar system speed" role="dialog">
+          <div class="popup-panel-header">
+            <p class="panel-label">System speed</p>
+            <button id="btn-speed-close" type="button" class="popup-panel-close" title="Close">
+              ×
+            </button>
+          </div>
+          <div class="time-readout">
+            <span id="time-scale-label">1.0×</span>
+            <span class="time-hint">orbits &amp; spin</span>
+          </div>
+          <input
+            id="time-scale"
+            type="range"
+            min="0"
+            max="4"
+            step="0.01"
+            value="1.26"
+            aria-valuemin="0"
+            aria-valuemax="10"
+            aria-label="Solar system time scale"
+          />
+          <div class="time-presets">
+            <button type="button" data-scale="0" title="Pause (P)">Pause</button>
+            <button type="button" data-scale="0.5" title="0.5×">0.5×</button>
+            <button type="button" data-scale="1" title="1×">1×</button>
+            <button type="button" data-scale="5" title="5×">5×</button>
+            <button type="button" data-scale="10" title="10×">10×</button>
+          </div>
+        </aside>
+
+        <aside id="ephemeris-panel" class="popup-panel ephemeris-panel hidden" aria-label="Planet positions" role="dialog">
+          <div class="popup-panel-header">
+            <p class="panel-label">Planet positions</p>
+            <button id="btn-ephemeris-close" type="button" class="popup-panel-close" title="Close">
+              ×
+            </button>
+          </div>
+          <p class="ephemeris-hint">Approximate Sol orbits for a real date</p>
+          <div class="ephemeris-row">
+            <input id="ephemeris-date" type="date" aria-label="Calendar date for planet positions" />
+            <button id="btn-ephemeris" type="button" class="ephemeris-apply" title="Set Sol planets to this date">
+              Set orbits
+            </button>
+          </div>
+          <p id="ephemeris-status" class="ephemeris-status" aria-live="polite"></p>
+        </aside>
+
+        <nav id="catalog" class="catalog" aria-label="Celestial catalog">
+          <p class="panel-label">Star systems</p>
+          <ul id="system-list" class="system-list"></ul>
+          <p class="panel-label catalog-bodies-label">Catalog</p>
+          <ul id="catalog-list"></ul>
+        </nav>
+
+        <footer class="telemetry">
+          <div class="tele-block">
+            <span class="tele-label">Velocity</span>
+            <span id="tele-speed">0 km/s</span>
+          </div>
+          <div class="tele-block">
+            <span class="tele-label">Altitude</span>
+            <span id="tele-alt">—</span>
+          </div>
+          <div class="tele-block">
+            <span class="tele-label">Throttle</span>
+            <span id="tele-throttle">1×</span>
+          </div>
+          <div class="tele-block">
+            <span class="tele-label">Scale</span>
+            <span id="tele-scale">8×</span>
+          </div>
+          <div class="tele-block">
+            <span class="tele-label">Mode</span>
+            <span id="tele-mode">Cruise</span>
+          </div>
+          <div class="tele-block">
+            <span class="tele-label">System</span>
+            <span id="tele-system">1.0×</span>
+          </div>
+        </footer>
+
+        <aside id="controls-panel" class="popup-panel controls-panel hidden" aria-label="Controls and shortcuts" role="dialog">
+          <div class="popup-panel-header">
+            <p class="panel-label">Controls / Shortcuts</p>
+            <button id="btn-controls-close" type="button" class="popup-panel-close" title="Close">
+              ×
+            </button>
+          </div>
+          <div class="controls-help">
+            <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> fly · <kbd>Q</kbd><kbd>E</kbd> up/down</p>
+            <p><kbd>Shift</kbd> boost · scroll throttle / orbit altitude</p>
+            <p><kbd>O</kbd> orbit lock · <kbd>F</kbd> warp · <kbd>R</kbd> Sol · <kbd>P</kbd> pause</p>
+            <p><kbd>H</kbd> land · <kbd>T</kbd> takeoff · <kbd>G</kbd> system · <kbd>L</kbd> labels</p>
+            <p><kbd>C</kbd> Sol tour · Explore has star systems tour · <kbd>J</kbd> spaceship</p>
+            <p><kbd>M</kbd> sound FX · <kbd>I</kbd> starfield · <kbd>B</kbd> asteroids</p>
+            <p><kbd>K</kbd> constellations · <kbd>N</kbd> star names</p>
+            <p><kbd>[</kbd><kbd>]</kbd> system speed · <kbd>Click</kbd> select under cursor</p>
+            <p>Hold <kbd>LMB</kbd> look around · release to move cursor freely</p>
+            <p>Explore → Leave Milky Way for a deep-space galaxy vista</p>
+            <p><kbd>Esc</kbd> stop look / close panels</p>
+          </div>
+        </aside>
+
+        <div id="crosshair" class="crosshair" aria-hidden="true"></div>
+        <div id="bridge-overlay" class="bridge-overlay hidden" aria-hidden="true"></div>
+        <p id="warp-banner" class="warp-banner hidden">Warping…</p>
+        <div id="tour-banner" class="tour-banner hidden" aria-live="polite">
+          <p class="tour-kicker">Cinematic tour</p>
+          <h2 id="tour-title">Sol</h2>
+          <p id="tour-subtitle"></p>
+          <p class="tour-hint">Press <kbd>Esc</kbd> or <kbd>C</kbd> to end</p>
+        </div>
+        <p id="land-hint" class="land-hint hidden">Press <kbd>H</kbd> to land · <kbd>T</kbd> take off</p>
+        <p id="surface-banner" class="surface-banner hidden">Surface</p>
+      </div>
+    </div>
+  </body>
+</html>
