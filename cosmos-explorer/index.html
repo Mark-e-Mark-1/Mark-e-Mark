@@ -10,8 +10,8 @@
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/Mark-e-Mark/cosmos-explorer/assets/index-DrCOtvbA.js"></script>
-    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/cosmos-explorer/assets/index-6H_LsU9k.css">
+    <script type="module" crossorigin src="/Mark-e-Mark/cosmos-explorer/assets/index-CtWYny5B.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/cosmos-explorer/assets/index-B7S4ybJS.css">
   </head>
   <body>
     <div id="app">
@@ -51,7 +51,41 @@
           </div>
         </aside>
 
+        <aside id="universe-panel" class="body-panel universe-panel hidden">
+          <p class="panel-label">Larger universe</p>
+          <h2>Observable cosmos</h2>
+          <dl id="universe-stats"></dl>
+        </aside>
+
         </div>
+
+        <aside
+          id="deep-field-panel"
+          class="deep-field-panel hidden"
+          aria-label="Hubble eXtreme Deep Field"
+          role="dialog"
+        >
+          <div class="deep-field-header">
+            <p class="panel-label">Deep field photo</p>
+            <button id="btn-deep-field-close" type="button" class="popup-panel-close" title="Close">
+              ×
+            </button>
+          </div>
+          <div class="deep-field-body">
+            <figure class="deep-field-figure">
+              <img
+                id="deep-field-image"
+                alt="Hubble eXtreme Deep Field — thousands of distant galaxies"
+                decoding="async"
+              />
+              <figcaption id="deep-field-credit"></figcaption>
+            </figure>
+            <div class="deep-field-info">
+              <h2 id="deep-field-title">Hubble eXtreme Deep Field</h2>
+              <dl id="deep-field-stats"></dl>
+            </div>
+          </div>
+        </aside>
 
         <div class="top-tools" aria-label="Toolbar">
           <button
@@ -100,6 +134,25 @@
             aria-controls="explore-panel"
           >
             Explore
+          </button>
+          <button
+            id="btn-galaxy"
+            type="button"
+            class="display-toggle"
+            title="Leave the Milky Way to see it among other galaxies"
+            aria-pressed="false"
+          >
+            Leave Milky Way
+          </button>
+          <button
+            id="btn-deep-field"
+            type="button"
+            class="display-toggle hidden"
+            title="View the Hubble eXtreme Deep Field photo"
+            aria-pressed="false"
+            aria-controls="deep-field-panel"
+          >
+            Deep Field
           </button>
           <button
             id="btn-speed-panel"
@@ -209,14 +262,6 @@
             >
               Star systems tour
             </button>
-            <button
-              id="btn-galaxy"
-              type="button"
-              class="explore-btn"
-              title="Leave the Milky Way to see it among other galaxies"
-            >
-              Leave Milky Way
-            </button>
             <button id="btn-bookmark-save" type="button" class="explore-btn" title="Save view (V)">
               Save view
             </button>
@@ -250,10 +295,10 @@
           />
           <div class="time-presets">
             <button type="button" data-scale="0" title="Pause (P)">Pause</button>
+            <button type="button" data-scale="0.01" title="0.01×">0.01×</button>
             <button type="button" data-scale="0.5" title="0.5×">0.5×</button>
             <button type="button" data-scale="1" title="1×">1×</button>
             <button type="button" data-scale="5" title="5×">5×</button>
-            <button type="button" data-scale="10" title="10×">10×</button>
           </div>
         </aside>
 
@@ -325,7 +370,7 @@
             <p><kbd>K</kbd> constellations · <kbd>N</kbd> star names</p>
             <p><kbd>[</kbd><kbd>]</kbd> system speed · <kbd>Click</kbd> select under cursor</p>
             <p>Hold <kbd>LMB</kbd> look around · release to move cursor freely</p>
-            <p>Explore → Leave Milky Way for a deep-space galaxy vista</p>
+            <p>Top bar → Leave Milky Way · Deep Field photo (outside the galaxy)</p>
             <p><kbd>Esc</kbd> stop look / close panels</p>
           </div>
         </aside>
