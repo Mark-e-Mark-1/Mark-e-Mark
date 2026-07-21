@@ -1,0 +1,12 @@
+﻿Card sound samples adapted from:
+https://github.com/WalidAlouani/Solitaire
+Copyright (c) 2025 Walid Alouani
+Licensed under the MIT License (see that repository for the full license text).
+
+Files:
+  take.wav    — card pick / draw
+  place.wav   — card drop / place
+  illegal.wav — invalid / snap-back
+  click.wav   — light UI / select tap
+
+Foundation and win chimes are synthesized in-game (not from these samples).
