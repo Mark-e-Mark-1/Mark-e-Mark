@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Pack-a-Man</title>
+    <link rel="icon" type="image/svg+xml" href="/Mark-e-Mark/pack-a-man/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@500;700&display=swap" rel="stylesheet" />
+    <script type="module" crossorigin src="/Mark-e-Mark/pack-a-man/assets/index-B2KNbUXw.js"></script>
+    <link rel="stylesheet" crossorigin href="/Mark-e-Mark/pack-a-man/assets/index-DCLeH4nf.css">
+  </head>
+  <body>
+    <div id="app">
+      <header class="top">
+        <div>
+          <p class="eyebrow">Arcade classic</p>
+          <h1>PACK-A-MAN</h1>
+        </div>
+        <div class="hud">
+          <div class="stat"><span>SCORE</span><strong id="score">0</strong></div>
+          <div class="stat"><span>HIGH</span><strong id="high">0</strong></div>
+          <div class="stat"><span>LEVEL</span><strong id="level">1</strong></div>
+        </div>
+      </header>
+
+      <div class="stage-wrap">
+        <canvas id="game" width="448" height="496" aria-label="Pack-a-Man game"></canvas>
+        <div id="overlay" class="overlay">
+          <p class="ready" id="overlay-title">READY!</p>
+          <p class="hint">Arrows / WASD — you start on a horizontal path (Left/Right first)</p>
+          <p class="hint mobile-hint">Swipe or use the pad on touch devices</p>
+          <button type="button" id="start-btn" class="cta">Start Game</button>
+          <p class="hint"><a href="../" style="color:#ffe14a">All Apps</a></p>
+        </div>
+      </div>
+
+      <div class="lives-row" id="lives"></div>
+
+      <div id="touch-pad" class="touch-pad" aria-hidden="true">
+        <button type="button" data-dir="up" class="tbtn up">▲</button>
+        <button type="button" data-dir="left" class="tbtn left">◀</button>
+        <button type="button" data-dir="down" class="tbtn down">▼</button>
+        <button type="button" data-dir="right" class="tbtn right">▶</button>
+      </div>
+    </div>
+  </body>
+</html>

@@ -18,6 +18,7 @@ A launcher hub for browser-based apps. Visitors open the menu and click an app t
 | Solitaire | `solitaire/` | Classic Klondike solitaire |
 | 3D Solitaire | `3d-solitaire/` | Klondike on a 3D felt table |
 | 3D Frogger | `3d-frogger/` | Classic Frogger remade in 3D |
+| Pack-A-Man | `pack-a-man/` | Classic Pac-Man clone |
 
 ## Run locally
 
