@@ -10,6 +10,14 @@ A launcher hub for browser-based apps. Visitors open the menu and click an app t
 |-----|--------|-------------|
 | Letter Dash | `letter-dash/` | Letter platformer + level editor |
 | The Abstract Painter | `the-abstract-painter/` | Abstract painting studio |
+| Word Processor | `word-processor/` | Simple browser word processor |
+| Basic Spreadsheet | `my-basic-spreadsheet/` | Spreadsheet with formulas |
+| Undersea Adventure | `undersea-adventure/` | Undersea side-scroller |
+| Domino Simulator | `domino-simulator/` | 3D domino physics |
+| Cosmos Explorer | `cosmos-explorer/` | 3D star-system flight |
+| Solitaire | `solitaire/` | Classic Klondike solitaire |
+| 3D Solitaire | `3d-solitaire/` | Klondike on a 3D felt table |
+| 3D Frogger | `3d-frogger/` | Classic Frogger remade in 3D |
 
 ## Run locally
 
