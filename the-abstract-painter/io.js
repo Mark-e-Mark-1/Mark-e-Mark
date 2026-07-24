@@ -5,12 +5,24 @@ const IO = (() => {
   }
 
   function layerToData(layer) {
-    return {
+    const base = {
       name: layer.name,
       visible: layer.visible,
       opacity: layer.opacity,
       blendMode: layer.blendMode,
       locked: layer.locked,
+      type: layer.type || "raster",
+    };
+    if (DocumentModel.isVectorLayer(layer)) {
+      return {
+        ...base,
+        type: "vector",
+        objects: VectorModel.cloneObjects(layer.objects),
+      };
+    }
+    return {
+      ...base,
+      type: "raster",
       image: layer.canvas.toDataURL("image/png"),
     };
   }
@@ -23,6 +35,7 @@ const IO = (() => {
       height: doc.height,
       background: doc.backgroundColor,
       palette: Palette.toJSON(),
+      guides: typeof GuidesManager !== "undefined" ? GuidesManager.getGuides() : [],
       layers: doc.layers.map(layerToData),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -51,17 +64,38 @@ const IO = (() => {
               if (doc.layers.length === 0) DocumentModel.addLayer(doc, "Layer 1");
               doc.activeLayerId = doc.layers[doc.layers.length - 1].id;
               if (data.palette) Palette.loadFromProject(data.palette);
+              if (typeof GuidesManager !== "undefined") {
+                GuidesManager.setGuides(data.guides || []);
+              }
               doc.dirty = true;
               addRecent(doc.title);
               resolve(doc);
               return;
             }
             const ld = data.layers[index];
+            if (ld.type === "vector") {
+              const layer = DocumentModel.createVectorLayer(ld.name, doc.width, doc.height);
+              layer.visible = ld.visible !== false;
+              layer.opacity = ld.opacity ?? 1;
+              layer.blendMode = ld.blendMode || "source-over";
+              layer.locked = ld.locked || false;
+              layer.objects = VectorModel.cloneObjects(ld.objects || []);
+              layer.cacheDirty = true;
+              VectorRender.ensureCache(layer, doc.width, doc.height);
+              doc.layers.push(layer);
+              loadNext(index + 1);
+              return;
+            }
             const layer = DocumentModel.createLayer(ld.name, doc.width, doc.height);
             layer.visible = ld.visible !== false;
             layer.opacity = ld.opacity ?? 1;
             layer.blendMode = ld.blendMode || "source-over";
             layer.locked = ld.locked || false;
+            if (!ld.image) {
+              doc.layers.push(layer);
+              loadNext(index + 1);
+              return;
+            }
             const img = new Image();
             img.onload = () => {
               layer.getCtx().drawImage(img, 0, 0);
@@ -96,6 +130,31 @@ const IO = (() => {
     }, mime, quality ?? 0.92);
   }
 
+  function exportSvg(doc) {
+    const parts = [];
+    parts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
+    parts.push(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${doc.width}" height="${doc.height}" viewBox="0 0 ${doc.width} ${doc.height}">`);
+    if (doc.backgroundColor) {
+      parts.push(`<rect width="100%" height="100%" fill="${doc.backgroundColor}"/>`);
+    }
+    doc.layers.forEach((layer, index) => {
+      if (!layer.visible) return;
+      const opacity = layer.opacity ?? 1;
+      parts.push(`<g id="layer-${index}" opacity="${opacity}">`);
+      if (DocumentModel.isVectorLayer(layer)) {
+        parts.push(VectorRender.objectsToSvgFragment(layer.objects || []));
+      } else {
+        VectorRender.ensureCache?.(layer, doc.width, doc.height);
+        const dataUrl = layer.canvas.toDataURL("image/png");
+        parts.push(`<image width="${doc.width}" height="${doc.height}" href="${dataUrl}" xlink:href="${dataUrl}" />`);
+      }
+      parts.push(`</g>`);
+    });
+    parts.push(`</svg>`);
+    const blob = new Blob([parts.join("\n")], { type: "image/svg+xml" });
+    downloadBlob(blob, sanitizeTitle(doc.title) + ".svg");
+  }
+
   function importImage(file, doc, asNewLayer) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -107,7 +166,11 @@ const IO = (() => {
             layer = DocumentModel.addLayer(doc, file.name.replace(/\.[^.]+$/, ""));
           } else {
             layer = DocumentModel.getActiveLayer(doc);
-            layer.getCtx().clearRect(0, 0, doc.width, doc.height);
+            if (DocumentModel.isVectorLayer(layer)) {
+              layer = DocumentModel.addLayer(doc, file.name.replace(/\.[^.]+$/, ""));
+            } else {
+              layer.getCtx().clearRect(0, 0, doc.width, doc.height);
+            }
           }
           const ctx = layer.getCtx();
           const scale = Math.min(doc.width / img.width, doc.height / img.height, 1);
@@ -156,6 +219,7 @@ const IO = (() => {
     saveProject,
     loadProject,
     exportImage,
+    exportSvg,
     importImage,
     getRecent,
     sanitizeTitle,

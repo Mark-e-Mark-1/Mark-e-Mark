@@ -280,15 +280,32 @@ const SelectionManager = (() => {
     return sourceItems.map((item) => ({
       content: cloneCanvas(item.content),
       transform: cloneTransform(item.transform),
+      shadow: item.shadow ? { ...item.shadow } : null,
     }));
   }
 
   function addItem(app, layer, content, transform, cut) {
-    items.push({ layerId: layer.id, content, transform, cut });
+    items.push({ layerId: layer.id, content, transform, cut, shadow: null });
     activeIndex = items.length - 1;
     if (cut) app.onHistoryChange();
     app.onSelectionChange?.();
     app.requestRender();
+  }
+
+  function drawItemContent(ctx, item) {
+    const t = item.transform;
+    ctx.save();
+    ctx.translate(t.cx, t.cy);
+    ctx.rotate(t.rotation);
+    if (item.shadow) {
+      const sh = item.shadow;
+      ctx.shadowColor = VectorModel.rgbaFromHex(sh.color || "#000000", sh.opacity ?? 0.45);
+      ctx.shadowBlur = Math.max(0, sh.blur ?? 12);
+      ctx.shadowOffsetX = sh.dx ?? 4;
+      ctx.shadowOffsetY = sh.dy ?? 6;
+    }
+    ctx.drawImage(item.content, -t.w / 2, -t.h / 2, t.w, t.h);
+    ctx.restore();
   }
 
   function liftRect(app, rect, asCopy) {
@@ -383,15 +400,6 @@ const SelectionManager = (() => {
       if (mode) return { index: i, mode };
     }
     return null;
-  }
-
-  function drawItemContent(ctx, item) {
-    const t = item.transform;
-    ctx.save();
-    ctx.translate(t.cx, t.cy);
-    ctx.rotate(t.rotation);
-    ctx.drawImage(item.content, -t.w / 2, -t.h / 2, t.w, t.h);
-    ctx.restore();
   }
 
   function strokePolygon(ctx, pts) {
@@ -544,6 +552,7 @@ const SelectionManager = (() => {
       layerId: layer.id,
       content: cloneCanvas(entry.content),
       transform: cloneTransform(entry.transform),
+      shadow: entry.shadow ? { ...entry.shadow } : null,
       cut: false,
     }));
     activeIndex = items.length - 1;
@@ -683,12 +692,93 @@ const SelectionManager = (() => {
       const multi = n > 1 ? ` · ${n} selected` : "";
       const layer = app?.doc ? DocumentModel.getActiveLayer(app.doc) : null;
       const target = layer ? ` → ${layer.name}` : "";
-      return `Selection${multi}${target}: move/resize · switch layer to paste elsewhere · Enter apply · Ctrl+C copy · Esc cancel`;
+      const t = getActiveTransform();
+      const deg = t ? Math.round((t.rotation * 180) / Math.PI) : 0;
+      return `Selection${multi}${target}: move/resize/rotate (${deg}°) · Transform bar · Enter apply · Esc cancel`;
     }
     if (hasClipboard()) return "Ctrl+V paste copied selection onto active layer";
     if (marquee) return "Drag to select area · Crop buttons trim to this region";
     if (regionRect && canCrop(app?.doc)) return "Crop Image or Crop Layer to the last selection region";
     return "";
+  }
+
+  function getActiveItem() {
+    if (activeIndex < 0 || activeIndex >= items.length) return null;
+    return items[activeIndex];
+  }
+
+  function getActiveTransform() {
+    return getActiveItem()?.transform || null;
+  }
+
+  function mutateActive(app, fn) {
+    const item = getActiveItem();
+    if (!item) return false;
+    fn(item.transform);
+    app?.requestRender?.();
+    app?.onSelectionChange?.();
+    return true;
+  }
+
+  function rotateActive(app, degrees) {
+    return mutateActive(app, (t) => {
+      t.rotation += (degrees * Math.PI) / 180;
+    });
+  }
+
+  function flipActiveContent(app, horizontal) {
+    const item = getActiveItem();
+    if (!item) return false;
+    const src = item.content;
+    const c = document.createElement("canvas");
+    c.width = src.width;
+    c.height = src.height;
+    const ctx = c.getContext("2d");
+    ctx.save();
+    if (horizontal) {
+      ctx.translate(c.width, 0);
+      ctx.scale(-1, 1);
+    } else {
+      ctx.translate(0, c.height);
+      ctx.scale(1, -1);
+    }
+    ctx.drawImage(src, 0, 0);
+    ctx.restore();
+    item.content = c;
+    app?.requestRender?.();
+    app?.onSelectionChange?.();
+    return true;
+  }
+
+  function scaleActive(app, factor) {
+    const f = Math.max(0.05, Math.min(20, +factor || 1));
+    return mutateActive(app, (t) => {
+      t.w = Math.max(8, Math.abs(t.w) * f);
+      t.h = Math.max(8, Math.abs(t.h) * f);
+    });
+  }
+
+  function setActiveRotation(app, degrees) {
+    return mutateActive(app, (t) => {
+      t.rotation = ((+degrees || 0) * Math.PI) / 180;
+    });
+  }
+
+  function getActiveShadow() {
+    const item = getActiveItem();
+    return item?.shadow ? { ...item.shadow } : null;
+  }
+
+  function setShadowOnFloating(app, shadow, allItems = true) {
+    if (!hasFloating()) return false;
+    const targets = allItems ? items : getActiveItem() ? [getActiveItem()] : [];
+    const next = shadow ? VectorModel.cloneShadow(shadow) : null;
+    targets.forEach((item) => {
+      item.shadow = next ? { ...next } : null;
+    });
+    app?.requestRender?.();
+    app?.onSelectionChange?.();
+    return true;
   }
 
   function onToolChange() {
@@ -711,6 +801,13 @@ const SelectionManager = (() => {
     pasteFromClipboard,
     clearMarquee,
     getStatusHint,
+    getActiveTransform,
+    getActiveShadow,
+    setShadowOnFloating,
+    rotateActive,
+    flipActiveContent,
+    scaleActive,
+    setActiveRotation,
     onToolChange,
   };
 })();

@@ -123,5 +123,168 @@ const LayerFilters = (() => {
     }
   }
 
-  return { applyDrawing };
+  function clampByte(v) {
+    return v < 0 ? 0 : v > 255 ? 255 : v;
+  }
+
+  function mapLevelsChannel(v, black, white, gamma) {
+    const b = Math.min(254, Math.max(0, black));
+    const w = Math.max(b + 1, Math.min(255, white));
+    let t = (v - b) / (w - b);
+    t = Math.min(1, Math.max(0, t));
+    const g = Math.max(0.1, Math.min(3, gamma || 1));
+    return clampByte(Math.pow(t, 1 / g) * 255);
+  }
+
+  /** Levels: remap tonal range. black/white in 0–255, gamma ~0.1–3 (1 = linear). */
+  function applyLevels(layer, options) {
+    const black = options.black ?? 0;
+    const white = options.white ?? 255;
+    const gamma = options.gamma ?? 1;
+    const w = layer.canvas.width;
+    const h = layer.canvas.height;
+    if (w < 1 || h < 1) return;
+    const ctx = layer.getCtx();
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0) continue;
+      d[i] = mapLevelsChannel(d[i], black, white, gamma);
+      d[i + 1] = mapLevelsChannel(d[i + 1], black, white, gamma);
+      d[i + 2] = mapLevelsChannel(d[i + 2], black, white, gamma);
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  /** Build a 256 LUT from curve points [{x,y}] in 0–255 (x sorted). */
+  function buildCurveLut(points) {
+    const pts = (points && points.length ? points.slice() : [
+      { x: 0, y: 0 },
+      { x: 255, y: 255 },
+    ]).map((p) => ({ x: +p.x, y: +p.y })).sort((a, b) => a.x - b.x);
+    if (pts[0].x > 0) pts.unshift({ x: 0, y: pts[0].y });
+    if (pts[pts.length - 1].x < 255) pts.push({ x: 255, y: pts[pts.length - 1].y });
+    const lut = new Uint8Array(256);
+    let j = 0;
+    for (let x = 0; x < 256; x++) {
+      while (j < pts.length - 2 && pts[j + 1].x < x) j++;
+      const a = pts[j];
+      const b = pts[j + 1] || a;
+      const t = b.x === a.x ? 0 : (x - a.x) / (b.x - a.x);
+      // Smoothstep interpolation
+      const s = t * t * (3 - 2 * t);
+      lut[x] = clampByte(a.y + (b.y - a.y) * s);
+    }
+    return lut;
+  }
+
+  /** Curves: apply tone curve. points = [{x,y}] 0–255, or preset "s-curve" / "invert". */
+  function applyCurves(layer, options) {
+    let points = options.points;
+    if (options.preset === "s-curve") {
+      points = [
+        { x: 0, y: 0 },
+        { x: 64, y: 48 },
+        { x: 128, y: 128 },
+        { x: 192, y: 208 },
+        { x: 255, y: 255 },
+      ];
+    } else if (options.preset === "invert") {
+      points = [
+        { x: 0, y: 255 },
+        { x: 255, y: 0 },
+      ];
+    } else if (options.mid != null) {
+      // Single mid-point control: shadow→mid→highlight
+      const mid = Math.min(240, Math.max(16, options.mid));
+      const midOut = Math.min(240, Math.max(16, options.midOut ?? mid));
+      points = [
+        { x: 0, y: 0 },
+        { x: mid, y: midOut },
+        { x: 255, y: 255 },
+      ];
+    }
+    const lut = buildCurveLut(points);
+    const w = layer.canvas.width;
+    const h = layer.canvas.height;
+    if (w < 1 || h < 1) return;
+    const ctx = layer.getCtx();
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0) continue;
+      d[i] = lut[d[i]];
+      d[i + 1] = lut[d[i + 1]];
+      d[i + 2] = lut[d[i + 2]];
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    if (max === min) return { h: 0, s: 0, l };
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    let h = 0;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+    return { h, s, l };
+  }
+
+  function hue2rgb(p, q, t) {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  }
+
+  function hslToRgb(h, s, l) {
+    if (s === 0) {
+      const v = clampByte(l * 255);
+      return { r: v, g: v, b: v };
+    }
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    return {
+      r: clampByte(hue2rgb(p, q, h + 1 / 3) * 255),
+      g: clampByte(hue2rgb(p, q, h) * 255),
+      b: clampByte(hue2rgb(p, q, h - 1 / 3) * 255),
+    };
+  }
+
+  /** Hue/saturation: hueShift degrees (-180..180), sat ±100, light ±100. */
+  function applyHueSat(layer, options) {
+    const hueShift = (options.hue ?? 0) / 360;
+    const satDelta = (options.saturation ?? 0) / 100;
+    const lightDelta = (options.lightness ?? 0) / 100;
+    const w = layer.canvas.width;
+    const h = layer.canvas.height;
+    if (w < 1 || h < 1) return;
+    const ctx = layer.getCtx();
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0) continue;
+      const hsl = rgbToHsl(d[i], d[i + 1], d[i + 2]);
+      let hVal = hsl.h + hueShift;
+      hVal = hVal - Math.floor(hVal);
+      let s = Math.min(1, Math.max(0, hsl.s + satDelta));
+      let l = Math.min(1, Math.max(0, hsl.l + lightDelta));
+      const rgb = hslToRgb(hVal, s, l);
+      d[i] = rgb.r;
+      d[i + 1] = rgb.g;
+      d[i + 2] = rgb.b;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  return { applyDrawing, applyLevels, applyCurves, applyHueSat };
 })();

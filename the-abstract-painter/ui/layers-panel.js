@@ -7,6 +7,12 @@ const LayersPanel = (() => {
     document.getElementById("layer-add").addEventListener("click", () => {
       if (onUpdate) onUpdate("add");
     });
+    const addVectorBtn = document.getElementById("layer-add-vector");
+    if (addVectorBtn) {
+      addVectorBtn.addEventListener("click", () => {
+        if (onUpdate) onUpdate("add-vector");
+      });
+    }
     document.getElementById("layer-remove").addEventListener("click", () => {
       if (onUpdate) onUpdate("remove");
     });
@@ -22,11 +28,30 @@ const LayersPanel = (() => {
     document.getElementById("layer-merge").addEventListener("click", () => {
       if (onUpdate) onUpdate("merge");
     });
+    const rasterizeBtn = document.getElementById("layer-rasterize");
+    if (rasterizeBtn) {
+      rasterizeBtn.addEventListener("click", () => {
+        if (onUpdate) onUpdate("rasterize");
+      });
+    }
+    const traceBtn = document.getElementById("layer-trace");
+    if (traceBtn) {
+      traceBtn.addEventListener("click", () => {
+        if (onUpdate) onUpdate("trace");
+      });
+    }
     document.getElementById("layer-blur").addEventListener("click", () => {
       if (onUpdate) onUpdate("blur-layer");
     });
     document.getElementById("layer-drawing").addEventListener("click", () => {
       if (onUpdate) onUpdate("drawing-filter");
+    });
+    ["layer-levels", "layer-curves", "layer-hue"].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        if (onUpdate) onUpdate(id.replace("layer-", "adjust-"));
+      });
     });
     document.getElementById("layer-flip-h").addEventListener("click", () => {
       if (onUpdate) onUpdate("flip-h");
@@ -112,6 +137,13 @@ const LayersPanel = (() => {
       stopRowBubble(blend);
 
       topRow.appendChild(visBtn);
+      if (DocumentModel.isVectorLayer(layer)) {
+        const badge = document.createElement("span");
+        badge.className = "layer-type-badge";
+        badge.textContent = "V";
+        badge.title = "Vector layer";
+        topRow.appendChild(badge);
+      }
       topRow.appendChild(name);
       topRow.appendChild(blend);
 

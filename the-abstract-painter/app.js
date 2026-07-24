@@ -11,12 +11,22 @@ const App = (() => {
     canvas: null,
     active: false,
     namePrefix: "Generated",
+    mode: "raster", // "raster" | "vector"
+    objects: null,
+    meta: null,
   };
 
   const tools = {
     ...StandardTools,
     ...AbstractTools,
+    ...VectorTools,
   };
+
+  const VECTOR_TOOLS = new Set([
+    "vector-pen", "vector-pencil", "vector-bezier", "vector-rect", "vector-roundrect",
+    "vector-select", "vector-node", "vector-polygon", "vector-ellipse", "vector-line",
+    "vector-text", "vector-star", "vector-regpoly",
+  ]);
 
   const toolOptions = {
     brushSize: CONFIG.DEFAULT_BRUSH,
@@ -27,6 +37,12 @@ const App = (() => {
     selectionMode: "rect",
     selectionAction: "cut",
     shapeFill: false,
+    strokeProfile: "constant",
+    vectorCornerRadius: 16,
+    vectorStarTips: 5,
+    vectorStarInner: 0.45,
+    vectorPolySides: 6,
+    vectorPencilSmooth: 2,
     kaleidoscopeSegments: CONFIG.KALEIDOSCOPE_SEGMENTS.default,
     noiseAmount: 12,
     wetBlend: true,
@@ -60,25 +76,35 @@ const App = (() => {
 
     CanvasViewport.init(displayCanvas, wrap);
     CanvasViewport.fitToView(doc.width, doc.height);
+    GuidesManager.ensureDom(wrap);
+    GuidesManager.setEnabled(true);
     LayersPanel.init(document.getElementById("layer-list"));
     PalettePanel.init();
 
     setupToolbar();
     setupMenus();
     setupNameDialog();
+    setupNewDocDialog();
+    setupAdjustDialog();
     setupToolOptions();
+    setupVectorPanel();
     setupPointerEvents();
     setupKeyboard();
 
     LayersPanel.onLayerAction(handleLayerAction);
-    CanvasViewport.onViewportChange(updateStatus);
+    CanvasViewport.onViewportChange(() => {
+      GuidesManager.drawRulers(doc.width, doc.height);
+      updateStatus();
+    });
+    window.addEventListener("guides-changed", () => {
+      render();
+      GuidesManager.drawRulers(doc.width, doc.height);
+    });
 
     render();
     updateUI();
     renderRecentFiles();
-    promptDocumentName("new").then((name) => {
-      if (name) setDocumentTitle(name);
-    });
+    openNewDocumentFlow({ initial: true });
   }
 
   let nameDialogMode = "new";
@@ -172,13 +198,108 @@ const App = (() => {
     document.title = doc.title + " — The Abstract Painter";
   }
 
-  function createNewDocument() {
-    doc = DocumentModel.createDocument();
+  function createNewDocument(opts = {}) {
+    const template = opts.template || null;
+    doc = DocumentModel.createDocument({
+      width: template?.w || opts.width,
+      height: template?.h || opts.height,
+      backgroundColor: template?.bg || opts.backgroundColor,
+      title: opts.title || "Untitled",
+    });
     History.clear(doc);
     clearGeneratorPreview();
+    GuidesManager.clearGuides();
+    applyDocumentStarter(template?.starter || opts.starter || "blank");
     CanvasViewport.fitToView(doc.width, doc.height);
     render();
     updateUI();
+  }
+
+  function applyDocumentStarter(starter) {
+    if (starter === "vector") {
+      const layer = DocumentModel.addVectorLayer(doc, "Vectors");
+      doc.activeLayerId = layer.id;
+    } else if (starter === "mixed") {
+      DocumentModel.addLayer(doc, "Paint");
+      const v = DocumentModel.addVectorLayer(doc, "Vectors");
+      doc.activeLayerId = v.id;
+    }
+  }
+
+  let selectedTemplateId = "hd";
+  let newDocResolve = null;
+
+  function setupNewDocDialog() {
+    const dialog = document.getElementById("new-doc-dialog");
+    const form = document.getElementById("new-doc-form");
+    const grid = document.getElementById("template-grid");
+    const nameInput = document.getElementById("new-doc-name");
+    const errorEl = document.getElementById("new-doc-error");
+    const templates = CONFIG.DOCUMENT_TEMPLATES || [];
+
+    grid.innerHTML = "";
+    templates.forEach((t) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "template-card" + (t.id === selectedTemplateId ? " active" : "");
+      btn.dataset.templateId = t.id;
+      btn.innerHTML = `<strong>${t.label}</strong><span>${t.desc || `${t.w}×${t.h}`}</span>`;
+      btn.addEventListener("click", () => {
+        selectedTemplateId = t.id;
+        grid.querySelectorAll(".template-card").forEach((c) => c.classList.remove("active"));
+        btn.classList.add("active");
+      });
+      grid.appendChild(btn);
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = IO.sanitizeTitle(nameInput.value) || "Untitled";
+      errorEl.classList.add("hidden");
+      const template = templates.find((t) => t.id === selectedTemplateId) || templates[0];
+      const done = newDocResolve;
+      newDocResolve = null;
+      dialog.close();
+      if (done) done({ name, template });
+    });
+
+    document.getElementById("new-doc-cancel").addEventListener("click", () => {
+      const done = newDocResolve;
+      newDocResolve = null;
+      dialog.close();
+      if (done) done(null);
+    });
+
+    dialog.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      document.getElementById("new-doc-cancel").click();
+    });
+  }
+
+  function openNewDocumentFlow({ initial = false } = {}) {
+    const dialog = document.getElementById("new-doc-dialog");
+    const nameInput = document.getElementById("new-doc-name");
+    const errorEl = document.getElementById("new-doc-error");
+    nameInput.value = "";
+    errorEl.classList.add("hidden");
+    return new Promise((resolve) => {
+      newDocResolve = (result) => {
+        if (!result) {
+          if (initial) setDocumentTitle("Untitled");
+          resolve(null);
+          return;
+        }
+        if (!initial) createNewDocument({ template: result.template, title: result.name });
+        else {
+          // Replace the default bootstrapping doc with the chosen template
+          createNewDocument({ template: result.template, title: result.name });
+        }
+        setDocumentTitle(result.name);
+        resolve(result);
+      };
+      dialog.showModal();
+      nameInput.focus();
+    });
   }
 
   function renderRecentFiles() {
@@ -223,6 +344,12 @@ const App = (() => {
     if (SelectionManager.hasFloating() && name !== "select") {
       SelectionManager.commit(getAppContext());
     }
+    if (activeTool === "vector-bezier" && name !== "vector-bezier") {
+      VectorTools["vector-bezier"].finish?.(getAppContext());
+    }
+    if (activeTool === "vector-polygon" && name !== "vector-polygon") {
+      VectorTools["vector-polygon"].finish?.(getAppContext(), false);
+    }
     activeTool = name;
     document.querySelectorAll("[data-tool]").forEach((b) => {
       b.classList.toggle("active", b.dataset.tool === name);
@@ -238,9 +365,7 @@ const App = (() => {
   function setupMenus() {
     document.getElementById("btn-new").addEventListener("click", async () => {
       if (!confirm("Create new document? Unsaved changes will be lost.")) return;
-      const name = await promptDocumentName("new");
-      createNewDocument();
-      if (name) setDocumentTitle(name);
+      await openNewDocumentFlow({ initial: false });
     });
 
     document.getElementById("btn-rename").addEventListener("click", () => {
@@ -275,6 +400,7 @@ const App = (() => {
     document.getElementById("btn-export-png").addEventListener("click", () => IO.exportImage(doc, "png"));
     document.getElementById("btn-export-jpg").addEventListener("click", () => IO.exportImage(doc, "jpeg"));
     document.getElementById("btn-export-webp").addEventListener("click", () => IO.exportImage(doc, "webp"));
+    document.getElementById("btn-export-svg").addEventListener("click", () => IO.exportSvg(doc));
     document.getElementById("btn-import-image").addEventListener("click", () => {
       document.getElementById("file-import-image").click();
     });
@@ -288,13 +414,51 @@ const App = (() => {
       e.target.value = "";
     });
 
+    document.getElementById("btn-import-svg").addEventListener("click", () => {
+      document.getElementById("file-import-svg").click();
+    });
+    document.getElementById("file-import-svg").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const { name, objects } = await VectorSvgIO.importSvgFile(file);
+        if (!objects.length) {
+          alert("No supported shapes found in SVG.");
+        } else {
+          const layer = DocumentModel.addVectorLayer(doc, name || "Imported SVG");
+          objects.forEach((obj) => DocumentModel.addVectorObject(layer, obj));
+          VectorRender.ensureCache(layer, doc.width, doc.height);
+          doc.activeLayerId = layer.id;
+          doc.dirty = true;
+          VectorSelection.setSelectedIds(objects.map((o) => o.id));
+          render();
+          updateUI();
+          syncVectorInspector();
+        }
+      } catch (err) {
+        alert("Failed to import SVG: " + (err.message || err));
+      }
+      e.target.value = "";
+    });
+
     document.getElementById("btn-undo").addEventListener("click", undo);
     document.getElementById("btn-redo").addEventListener("click", redo);
     document.getElementById("btn-fit").addEventListener("click", () => {
       CanvasViewport.fitToView(doc.width, doc.height);
     });
     document.getElementById("btn-fullscreen").addEventListener("click", toggleFullscreen);
+    document.getElementById("view-rulers").addEventListener("change", (e) => {
+      GuidesManager.setEnabled(e.target.checked);
+      render();
+      GuidesManager.drawRulers(doc.width, doc.height);
+    });
+    document.getElementById("btn-clear-guides").addEventListener("click", () => {
+      GuidesManager.clearGuides();
+      render();
+    });
     document.getElementById("btn-resize").addEventListener("click", () => {
+      document.getElementById("resize-w").value = doc.width;
+      document.getElementById("resize-h").value = doc.height;
       document.getElementById("resize-dialog").showModal();
     });
     document.getElementById("btn-generate-abstract").addEventListener("click", generateAbstractLayer);
@@ -309,6 +473,10 @@ const App = (() => {
     document.getElementById("btn-generate-abstract4").addEventListener("click", generateAbstract4Layer);
     document.getElementById("btn-generate-abstract5").addEventListener("click", generateAbstract5Layer);
     document.getElementById("btn-generate-abstract6").addEventListener("click", generateAbstract6Layer);
+    document.getElementById("btn-generate-vector-abstract")?.addEventListener("click", generateVectorAbstract);
+    document.getElementById("btn-generate-vector-geometric")?.addEventListener("click", generateVectorGeometric);
+    document.getElementById("btn-generate-vector-graffiti")?.addEventListener("click", generateVectorGraffiti);
+    document.getElementById("btn-generate-vector-wildstyle")?.addEventListener("click", generateVectorWildstyle);
     document.getElementById("btn-generate-toolbar").addEventListener("click", generateAbstractLayer);
     document.getElementById("btn-generate-golden-toolbar").addEventListener("click", generateGoldenLayer);
     document.getElementById("btn-generate-seed-toolbar").addEventListener("click", generateSeedOfLifeLayer);
@@ -321,9 +489,250 @@ const App = (() => {
     document.getElementById("btn-generate-abstract4-toolbar").addEventListener("click", generateAbstract4Layer);
     document.getElementById("btn-generate-abstract5-toolbar").addEventListener("click", generateAbstract5Layer);
     document.getElementById("btn-generate-abstract6-toolbar").addEventListener("click", generateAbstract6Layer);
+    document.getElementById("btn-generate-vector-toolbar")?.addEventListener("click", generateVectorAbstract);
+    document.getElementById("btn-generate-vector-geometric-toolbar")?.addEventListener("click", generateVectorGeometric);
+    document.getElementById("btn-generate-vector-graffiti-toolbar")?.addEventListener("click", generateVectorGraffiti);
+    document.getElementById("btn-generate-vector-wildstyle-toolbar")?.addEventListener("click", generateVectorWildstyle);
     document.getElementById("btn-create-generator-layer").addEventListener("click", commitGeneratorPreview);
     document.getElementById("btn-drawing-filter").addEventListener("click", applyDrawingFilter);
+    document.getElementById("btn-adjust-levels").addEventListener("click", () => openAdjustDialog("levels"));
+    document.getElementById("btn-adjust-curves").addEventListener("click", () => openAdjustDialog("curves"));
+    document.getElementById("btn-adjust-hue").addEventListener("click", () => openAdjustDialog("hue"));
     document.getElementById("resize-apply").addEventListener("click", applyResize);
+  }
+
+  let adjustMode = "levels";
+  let adjustSession = null; // { layerId, originalCanvas }
+  let adjustPreviewRaf = 0;
+
+  function copyLayerCanvas(layer) {
+    const c = document.createElement("canvas");
+    c.width = layer.canvas.width;
+    c.height = layer.canvas.height;
+    c.getContext("2d").drawImage(layer.canvas, 0, 0);
+    return c;
+  }
+
+  function restoreAdjustOriginal(layer, originalCanvas) {
+    const src = originalCanvas || adjustSession?.originalCanvas;
+    if (!src || !layer) return;
+    const ctx = layer.getCtx();
+    ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+    ctx.drawImage(src, 0, 0);
+  }
+
+  function getAdjustOptionsFromDialog() {
+    if (adjustMode === "levels") {
+      return {
+        kind: "levels",
+        black: +document.getElementById("adj-black").value,
+        white: +document.getElementById("adj-white").value,
+        gamma: +document.getElementById("adj-gamma").value / 100,
+      };
+    }
+    if (adjustMode === "curves") {
+      const preset = document.getElementById("adj-curve-preset").value;
+      if (preset === "s-curve" || preset === "invert") return { kind: "curves", preset };
+      return {
+        kind: "curves",
+        mid: +document.getElementById("adj-curve-mid").value,
+        midOut: +document.getElementById("adj-curve-midout").value,
+      };
+    }
+    return {
+      kind: "hue",
+      hue: +document.getElementById("adj-hue").value,
+      saturation: +document.getElementById("adj-sat").value,
+      lightness: +document.getElementById("adj-light").value,
+    };
+  }
+
+  function runAdjustmentOnLayer(layer, opts) {
+    if (opts.kind === "levels") {
+      LayerFilters.applyLevels(layer, opts);
+    } else if (opts.kind === "curves") {
+      LayerFilters.applyCurves(layer, opts);
+    } else {
+      LayerFilters.applyHueSat(layer, opts);
+    }
+  }
+
+  function isIdentityAdjustment(opts) {
+    if (opts.kind === "levels") {
+      return opts.black === 0 && opts.white === 255 && Math.abs(opts.gamma - 1) < 0.001;
+    }
+    if (opts.kind === "curves") {
+      if (opts.preset === "s-curve" || opts.preset === "invert") return false;
+      return opts.mid === 128 && opts.midOut === 128;
+    }
+    return opts.hue === 0 && opts.saturation === 0 && opts.lightness === 0;
+  }
+
+  function previewAdjustmentNow() {
+    if (!adjustSession) return;
+    const layer = doc.layers.find((l) => l.id === adjustSession.layerId);
+    if (!layer) return;
+    restoreAdjustOriginal(layer, adjustSession.originalCanvas);
+    const opts = getAdjustOptionsFromDialog();
+    if (!isIdentityAdjustment(opts)) runAdjustmentOnLayer(layer, opts);
+    render();
+  }
+
+  function scheduleAdjustPreview() {
+    if (!adjustSession) return;
+    if (adjustPreviewRaf) cancelAnimationFrame(adjustPreviewRaf);
+    adjustPreviewRaf = requestAnimationFrame(() => {
+      adjustPreviewRaf = 0;
+      previewAdjustmentNow();
+    });
+  }
+
+  function resetAdjustSliders() {
+    document.getElementById("adj-black").value = 0;
+    document.getElementById("adj-white").value = 255;
+    document.getElementById("adj-gamma").value = 100;
+    document.getElementById("adj-curve-preset").value = "mid";
+    document.getElementById("adj-curve-mid").value = 128;
+    document.getElementById("adj-curve-midout").value = 128;
+    document.getElementById("adj-hue").value = 0;
+    document.getElementById("adj-sat").value = 0;
+    document.getElementById("adj-light").value = 0;
+    document.getElementById("adj-black-val").textContent = "0";
+    document.getElementById("adj-white-val").textContent = "255";
+    document.getElementById("adj-gamma-val").textContent = "1.00";
+    document.getElementById("adj-curve-mid-val").textContent = "128";
+    document.getElementById("adj-curve-midout-val").textContent = "128";
+    document.getElementById("adj-hue-val").textContent = "0";
+    document.getElementById("adj-sat-val").textContent = "0";
+    document.getElementById("adj-light-val").textContent = "0";
+    const mid = true;
+    document.getElementById("adj-curve-mid-wrap").classList.toggle("hidden", !mid);
+    document.getElementById("adj-curve-midout-wrap").classList.toggle("hidden", !mid);
+  }
+
+  function endAdjustSession(commit) {
+    const dialog = document.getElementById("adjust-dialog");
+    if (adjustPreviewRaf) {
+      cancelAnimationFrame(adjustPreviewRaf);
+      adjustPreviewRaf = 0;
+    }
+    const session = adjustSession;
+    adjustSession = null;
+    if (!session) {
+      if (dialog.open) dialog.close();
+      return;
+    }
+    const layer = doc.layers.find((l) => l.id === session.layerId) || DocumentModel.getActiveLayer(doc);
+    if (!layer) {
+      if (dialog.open) dialog.close();
+      return;
+    }
+    if (commit) {
+      const opts = getAdjustOptionsFromDialog();
+      restoreAdjustOriginal(layer, session.originalCanvas);
+      if (!isIdentityAdjustment(opts)) {
+        History.beginStroke(doc, layer.id, DocumentModel.snapshotLayer(layer));
+        runAdjustmentOnLayer(layer, opts);
+        History.commitStroke(doc);
+        doc.dirty = true;
+      }
+    } else {
+      restoreAdjustOriginal(layer, session.originalCanvas);
+    }
+    if (dialog.open) dialog.close();
+    render();
+    updateUI();
+  }
+
+  function setupAdjustDialog() {
+    const dialog = document.getElementById("adjust-dialog");
+    const form = document.getElementById("adjust-form");
+    const bindRange = (id, valId, fmt) => {
+      const el = document.getElementById(id);
+      const val = document.getElementById(valId);
+      if (!el || !val) return;
+      const sync = () => {
+        val.textContent = fmt ? fmt(+el.value) : el.value;
+        scheduleAdjustPreview();
+      };
+      el.addEventListener("input", sync);
+      sync();
+    };
+    bindRange("adj-black", "adj-black-val");
+    bindRange("adj-white", "adj-white-val");
+    bindRange("adj-gamma", "adj-gamma-val", (v) => (v / 100).toFixed(2));
+    bindRange("adj-curve-mid", "adj-curve-mid-val");
+    bindRange("adj-curve-midout", "adj-curve-midout-val");
+    bindRange("adj-hue", "adj-hue-val");
+    bindRange("adj-sat", "adj-sat-val");
+    bindRange("adj-light", "adj-light-val");
+
+    const preset = document.getElementById("adj-curve-preset");
+    const syncCurvePreset = () => {
+      const mid = preset.value === "mid";
+      document.getElementById("adj-curve-mid-wrap").classList.toggle("hidden", !mid);
+      document.getElementById("adj-curve-midout-wrap").classList.toggle("hidden", !mid);
+      scheduleAdjustPreview();
+    };
+    preset.addEventListener("change", syncCurvePreset);
+    syncCurvePreset();
+
+    document.getElementById("adjust-reset").addEventListener("click", () => {
+      resetAdjustSliders();
+      scheduleAdjustPreview();
+    });
+    document.getElementById("adjust-cancel").addEventListener("click", () => {
+      endAdjustSession(false);
+    });
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      endAdjustSession(true);
+    });
+    dialog.addEventListener("cancel", (e) => {
+      // Esc
+      e.preventDefault();
+      endAdjustSession(false);
+    });
+    dialog.addEventListener("close", () => {
+      // If closed without going through endAdjustSession (e.g. form method=dialog), restore
+      if (adjustSession) endAdjustSession(false);
+    });
+  }
+
+  function openAdjustDialog(mode) {
+    const layer = DocumentModel.getActiveLayer(doc);
+    if (layer.locked) {
+      window.alert("Unlock the active layer before applying adjustments.");
+      return;
+    }
+    if (DocumentModel.isVectorLayer(layer)) {
+      window.alert("Adjustments work on raster layers. Select a raster layer, or merge/rasterize first.");
+      return;
+    }
+    // Finish any prior session without committing
+    if (adjustSession) endAdjustSession(false);
+
+    adjustMode = mode;
+    resetAdjustSliders();
+    adjustSession = {
+      layerId: layer.id,
+      originalCanvas: copyLayerCanvas(layer),
+    };
+
+    const dialog = document.getElementById("adjust-dialog");
+    const heading = document.getElementById("adjust-dialog-heading");
+    document.getElementById("adjust-levels-fields").classList.toggle("hidden", mode !== "levels");
+    document.getElementById("adjust-curves-fields").classList.toggle("hidden", mode !== "curves");
+    document.getElementById("adjust-hue-fields").classList.toggle("hidden", mode !== "hue");
+    heading.textContent =
+      mode === "levels" ? "Levels" : mode === "curves" ? "Curves" : "Hue / Saturation";
+    // Non-modal so the canvas stays visible and unobscured by a dim backdrop
+    dialog.show();
+    scheduleAdjustPreview();
+  }
+
+  function applyAdjustmentFromDialog() {
+    endAdjustSession(true);
   }
 
   function applyDrawingFilter() {
@@ -348,6 +757,9 @@ const App = (() => {
       generatorPreview.canvas.width = doc.width;
       generatorPreview.canvas.height = doc.height;
       generatorPreview.active = false;
+      generatorPreview.mode = "raster";
+      generatorPreview.objects = null;
+      generatorPreview.meta = null;
       updateGeneratorPreviewUI();
     }
     return generatorPreview.canvas.getContext("2d");
@@ -358,6 +770,9 @@ const App = (() => {
       generatorPreview.canvas.getContext("2d").clearRect(0, 0, generatorPreview.canvas.width, generatorPreview.canvas.height);
     }
     generatorPreview.active = false;
+    generatorPreview.mode = "raster";
+    generatorPreview.objects = null;
+    generatorPreview.meta = null;
     updateGeneratorPreviewUI();
   }
 
@@ -371,13 +786,78 @@ const App = (() => {
     ctx.clearRect(0, 0, doc.width, doc.height);
     generateFn(ctx);
     generatorPreview.active = true;
+    generatorPreview.mode = "raster";
+    generatorPreview.objects = null;
+    generatorPreview.meta = null;
     generatorPreview.namePrefix = namePrefix;
+    if (statusEl) statusEl.textContent = `Preview: ${namePrefix} — press Create Layer to add`;
+    render();
+    updateGeneratorPreviewUI();
+  }
+
+  function previewVectorGenerate(namePrefix, result) {
+    const { objects, styleName, layout, quadrantCount } = result || {};
+    if (!objects || !objects.length) {
+      window.alert("No vector shapes were generated. Try again.");
+      return;
+    }
+    const ctx = ensureGeneratorPreview();
+    ctx.clearRect(0, 0, doc.width, doc.height);
+    objects.forEach((obj) => VectorRender.drawObject(ctx, obj));
+    generatorPreview.active = true;
+    generatorPreview.mode = "vector";
+    generatorPreview.objects = objects;
+    generatorPreview.meta = { styleName, layout, quadrantCount };
+    generatorPreview.namePrefix = namePrefix;
+    const extra =
+      styleName === "geometric" && quadrantCount
+        ? ` — ${quadrantCount} panels (${layout || "grid"})`
+        : "";
+    if (statusEl) {
+      statusEl.textContent = `Preview: ${objects.length} vector shapes (${styleName || "abstract"})${extra} — press Create Layer to add`;
+    }
     render();
     updateGeneratorPreviewUI();
   }
 
   function commitGeneratorPreview() {
-    if (!generatorPreview.active || !generatorPreview.canvas) return;
+    if (!generatorPreview.active) return;
+
+    if (generatorPreview.mode === "vector") {
+      const objects = generatorPreview.objects;
+      if (!objects || !objects.length) return;
+      const meta = generatorPreview.meta || {};
+      const styleName = meta.styleName || "Abstract";
+      const layerNum = doc.layers.filter((l) => DocumentModel.isVectorLayer(l)).length + 1;
+      const label = styleName.charAt(0).toUpperCase() + styleName.slice(1);
+      const layer = DocumentModel.addVectorLayer(
+        doc,
+        generatorPreview.namePrefix
+          ? `${generatorPreview.namePrefix} ${layerNum}`
+          : `Vector ${label} ${layerNum}`
+      );
+      History.beginStroke(doc, layer.id, DocumentModel.snapshotLayer(layer));
+      objects.forEach((obj) => DocumentModel.addVectorObject(layer, obj));
+      VectorRender.ensureCache(layer, doc.width, doc.height);
+      History.commitStroke(doc);
+      doc.activeLayerId = layer.id;
+      doc.dirty = true;
+      VectorSelection.setSelectedIds(objects.map((o) => o.id));
+      const extra =
+        styleName === "geometric" && meta.quadrantCount
+          ? ` — ${meta.quadrantCount} panels (${meta.layout || "grid"})`
+          : "";
+      if (statusEl) {
+        statusEl.textContent = `Created ${objects.length} vector shapes (${styleName})${extra} on ${layer.name}`;
+      }
+      clearGeneratorPreview();
+      render();
+      updateUI();
+      syncVectorInspector();
+      return;
+    }
+
+    if (!generatorPreview.canvas) return;
     const layerNum = doc.layers.length + 1;
     const layer = DocumentModel.addLayer(doc, generatorPreview.namePrefix + " " + layerNum);
     History.beginStroke(doc, layer.id, DocumentModel.snapshotLayer(layer));
@@ -461,6 +941,34 @@ const App = (() => {
     });
   }
 
+  function generateVectorAbstract() {
+    previewVectorGenerate(
+      "Vector Abstract",
+      VectorGenerator.generate(doc.width, doc.height, Palette.getState())
+    );
+  }
+
+  function generateVectorGeometric() {
+    previewVectorGenerate(
+      "Vector Geometric",
+      VectorGenerator.generateGeometric(doc.width, doc.height, Palette.getState())
+    );
+  }
+
+  function generateVectorGraffiti() {
+    previewVectorGenerate(
+      "Vector Graffiti",
+      VectorGenerator.generateGraffiti(doc.width, doc.height, Palette.getState())
+    );
+  }
+
+  function generateVectorWildstyle() {
+    previewVectorGenerate(
+      "Vector Wildstyle",
+      VectorGenerator.generateWildstyle(doc.width, doc.height, Palette.getState())
+    );
+  }
+
   function applyResize(e) {
     e.preventDefault();
     const w = parseInt(document.getElementById("resize-w").value, 10);
@@ -475,6 +983,8 @@ const App = (() => {
     }
     document.getElementById("resize-dialog").close();
   }
+
+  let syncSelTransformFields = () => {};
 
   function setupToolOptions() {
     const sizeSlider = document.getElementById("opt-brush-size");
@@ -506,6 +1016,22 @@ const App = (() => {
     });
     document.getElementById("opt-shape-fill").addEventListener("change", (e) => {
       toolOptions.shapeFill = e.target.checked;
+    });
+    document.getElementById("opt-vec-corner").addEventListener("input", (e) => {
+      toolOptions.vectorCornerRadius = +e.target.value;
+      document.getElementById("opt-vec-corner-val").textContent = e.target.value;
+    });
+    document.getElementById("opt-vec-star-tips").addEventListener("input", (e) => {
+      toolOptions.vectorStarTips = +e.target.value;
+      document.getElementById("opt-vec-star-tips-val").textContent = e.target.value;
+    });
+    document.getElementById("opt-vec-poly-sides").addEventListener("input", (e) => {
+      toolOptions.vectorPolySides = +e.target.value;
+      document.getElementById("opt-vec-poly-sides-val").textContent = e.target.value;
+    });
+    document.getElementById("opt-vec-pencil-smooth").addEventListener("input", (e) => {
+      toolOptions.vectorPencilSmooth = +e.target.value;
+      document.getElementById("opt-vec-pencil-smooth-val").textContent = e.target.value;
     });
     document.getElementById("opt-wet-blend").addEventListener("change", (e) => {
       toolOptions.wetBlend = e.target.checked;
@@ -609,6 +1135,373 @@ const App = (() => {
         updateSelectionActions();
       }
     });
+
+    syncSelTransformFields = () => {
+      const t = SelectionManager.getActiveTransform();
+      const wrap = document.getElementById("opt-selection-transform-wrap");
+      if (!wrap) return;
+      wrap.classList.toggle("hidden", !t);
+      if (!t) return;
+      document.getElementById("sel-rot-deg").value = String(Math.round((t.rotation * 180) / Math.PI));
+    };
+
+    document.getElementById("sel-rot-ccw")?.addEventListener("click", () => {
+      SelectionManager.rotateActive(getAppContext(), -15);
+      syncSelTransformFields();
+    });
+    document.getElementById("sel-rot-cw")?.addEventListener("click", () => {
+      SelectionManager.rotateActive(getAppContext(), 15);
+      syncSelTransformFields();
+    });
+    document.getElementById("sel-rot-deg")?.addEventListener("change", (e) => {
+      SelectionManager.setActiveRotation(getAppContext(), +e.target.value);
+      syncSelTransformFields();
+    });
+    document.getElementById("sel-flip-h")?.addEventListener("click", () => {
+      SelectionManager.flipActiveContent(getAppContext(), true);
+    });
+    document.getElementById("sel-flip-v")?.addEventListener("click", () => {
+      SelectionManager.flipActiveContent(getAppContext(), false);
+    });
+    document.getElementById("sel-scale-down")?.addEventListener("click", () => {
+      SelectionManager.scaleActive(getAppContext(), 0.9);
+      document.getElementById("sel-scale-pct").value = "100";
+    });
+    document.getElementById("sel-scale-up")?.addEventListener("click", () => {
+      SelectionManager.scaleActive(getAppContext(), 1.1);
+      document.getElementById("sel-scale-pct").value = "100";
+    });
+    document.getElementById("sel-scale-apply")?.addEventListener("click", () => {
+      const pct = +document.getElementById("sel-scale-pct").value || 100;
+      SelectionManager.scaleActive(getAppContext(), pct / 100);
+      document.getElementById("sel-scale-pct").value = "100";
+    });
+
+    setupShadowControls();
+  }
+
+  let shadowUiSilent = false;
+
+  function shadowContextActive() {
+    if (SelectionManager.hasFloating()) return "raster";
+    const layer = DocumentModel.getActiveLayer(doc);
+    if (DocumentModel.isVectorLayer(layer) && VectorSelection.getSelectedIds().length) return "vector";
+    return null;
+  }
+
+  function readShadowFromUi(enabledOverride) {
+    const enabled = enabledOverride !== undefined
+      ? enabledOverride
+      : document.getElementById("shadow-enabled").checked;
+    if (!enabled) return null;
+    return VectorModel.cloneShadow({
+      dx: +document.getElementById("shadow-dx").value || 0,
+      dy: +document.getElementById("shadow-dy").value || 0,
+      blur: +document.getElementById("shadow-blur").value || 0,
+      opacity: (+document.getElementById("shadow-opacity").value || 0) / 100,
+      color: document.getElementById("shadow-color").value || "#000000",
+    });
+  }
+
+  function writeShadowToUi(shadow) {
+    shadowUiSilent = true;
+    const enabled = !!shadow;
+    const base = shadow || VectorModel.defaultShadow();
+    document.getElementById("shadow-enabled").checked = enabled;
+    document.getElementById("shadow-dx").value = String(base.dx);
+    document.getElementById("shadow-dy").value = String(base.dy);
+    document.getElementById("shadow-blur").value = String(base.blur);
+    document.getElementById("shadow-opacity").value = String(Math.round((base.opacity ?? 0.45) * 100));
+    if (base.color && /^#/.test(base.color)) document.getElementById("shadow-color").value = base.color;
+    const disabled = !enabled;
+    ["shadow-dx", "shadow-dy", "shadow-blur", "shadow-opacity", "shadow-color"].forEach((id) => {
+      document.getElementById(id).disabled = disabled;
+    });
+    shadowUiSilent = false;
+  }
+
+  function syncShadowUi() {
+    const ctx = shadowContextActive();
+    const wrap = document.getElementById("opt-shadow-wrap");
+    if (!wrap) return;
+    wrap.classList.toggle("hidden", !ctx);
+    if (!ctx) return;
+    if (ctx === "raster") {
+      writeShadowToUi(SelectionManager.getActiveShadow());
+      return;
+    }
+    const layer = DocumentModel.getActiveLayer(doc);
+    const id = VectorSelection.getPrimaryId();
+    const obj = id ? VectorModel.findObject(layer, id) : null;
+    writeShadowToUi(obj?.shadow || null);
+  }
+
+  function applyShadowFromUi() {
+    if (shadowUiSilent) return;
+    const ctx = shadowContextActive();
+    if (!ctx) return;
+    const shadow = readShadowFromUi();
+    if (ctx === "raster") {
+      SelectionManager.setShadowOnFloating(getAppContext(), shadow, true);
+      return;
+    }
+    VectorTools.applyAppearanceToSelection(getAppContext(), { shadow });
+    syncVectorInspector();
+  }
+
+  function setupShadowControls() {
+    const setFieldsEnabled = (on) => {
+      ["shadow-dx", "shadow-dy", "shadow-blur", "shadow-opacity", "shadow-color"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !on;
+      });
+    };
+    document.getElementById("shadow-enabled")?.addEventListener("change", () => {
+      if (shadowUiSilent) return;
+      const on = document.getElementById("shadow-enabled").checked;
+      setFieldsEnabled(on);
+      if (on) {
+        const sh = readShadowFromUi(true) || VectorModel.defaultShadow();
+        writeShadowToUi(sh);
+        document.getElementById("shadow-enabled").checked = true;
+        setFieldsEnabled(true);
+      }
+      applyShadowFromUi();
+    });
+    ["shadow-dx", "shadow-dy", "shadow-blur", "shadow-opacity", "shadow-color"].forEach((id) => {
+      document.getElementById(id)?.addEventListener("change", () => {
+        if (shadowUiSilent) return;
+        applyShadowFromUi();
+      });
+      document.getElementById(id)?.addEventListener("input", () => {
+        if (shadowUiSilent) return;
+        if (!document.getElementById("shadow-enabled").checked) return;
+        if (shadowContextActive() === "raster") applyShadowFromUi();
+      });
+    });
+  }
+
+  let vectorInspectorSilent = false;
+
+  function syncVectorInspector() {
+    const layer = DocumentModel.getActiveLayer(doc);
+    const id = VectorSelection.getPrimaryId();
+    const obj = DocumentModel.isVectorLayer(layer) && id ? VectorModel.findObject(layer, id) : null;
+    vectorInspectorSilent = true;
+    const strokeEl = document.getElementById("vec-stroke");
+    const strokeNone = document.getElementById("vec-stroke-none");
+    const fillTypeEl = document.getElementById("vec-fill-type");
+    const fillEl = document.getElementById("vec-fill");
+    const fillA = document.getElementById("vec-fill-a");
+    const fillB = document.getElementById("vec-fill-b");
+    const fillAngle = document.getElementById("vec-fill-angle");
+    const fillAngleVal = document.getElementById("vec-fill-angle-val");
+    const widthEl = document.getElementById("vec-stroke-width");
+    const widthVal = document.getElementById("vec-stroke-width-val");
+    const profileEl = document.getElementById("vec-stroke-profile");
+    const opacityEl = document.getElementById("vec-opacity");
+    const opacityVal = document.getElementById("vec-opacity-val");
+    const capEl = document.getElementById("vec-linecap");
+    const joinEl = document.getElementById("vec-linejoin");
+    const dashEl = document.getElementById("vec-dash");
+    if (obj) {
+      strokeNone.checked = !obj.stroke;
+      if (obj.stroke && /^#/.test(obj.stroke)) strokeEl.value = obj.stroke;
+      let fillType = "none";
+      if (VectorModel.isSolidFill(obj.fill)) fillType = "solid";
+      else if (VectorModel.isGradientFill(obj.fill)) fillType = obj.fill.type === "radial" ? "radial" : "linear";
+      fillTypeEl.value = fillType;
+      if (fillType === "solid" && /^#/.test(obj.fill)) fillEl.value = obj.fill;
+      if (fillType === "linear" || fillType === "radial") {
+        const stops = obj.fill.stops || [];
+        if (stops[0]?.color) fillA.value = stops[0].color;
+        if (stops[1]?.color) fillB.value = stops[1].color;
+        if (fillType === "linear") {
+          const dx = (obj.fill.x2 ?? 1) - (obj.fill.x1 ?? 0);
+          const dy = (obj.fill.y2 ?? 1) - (obj.fill.y1 ?? 0);
+          const ang = Math.round(((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360);
+          fillAngle.value = ang;
+          fillAngleVal.textContent = String(ang);
+        }
+      }
+      widthEl.value = obj.strokeWidth ?? 2;
+      widthVal.textContent = String(obj.strokeWidth ?? 2);
+      if (profileEl) profileEl.value = obj.strokeProfile || "constant";
+      opacityEl.value = Math.round((obj.opacity ?? 1) * 100);
+      opacityVal.textContent = String(Math.round((obj.opacity ?? 1) * 100));
+      capEl.value = obj.strokeLinecap || "round";
+      joinEl.value = obj.strokeLinejoin || "round";
+      dashEl.value = obj.dash && obj.dash.length ? "dashed" : "solid";
+      if (obj.type === "text") {
+        const tw = document.getElementById("vec-text-weight");
+        const ta = document.getElementById("vec-text-align");
+        const tf = document.getElementById("vec-text-family");
+        const to = document.getElementById("vec-text-path-offset");
+        const tov = document.getElementById("vec-text-path-offset-val");
+        if (tw) tw.value = String(obj.fontWeight || "normal");
+        if (ta) ta.value = obj.textAlign || "left";
+        if (tf && obj.fontFamily) {
+          const opt = [...tf.options].find((o) => o.value === obj.fontFamily);
+          if (opt) tf.value = obj.fontFamily;
+        }
+        if (to) {
+          to.value = Math.round(obj.pathOffset || 0);
+          if (tov) tov.textContent = String(Math.round(obj.pathOffset || 0));
+        }
+      }
+    }
+    updateFillInspectorVisibility();
+    const isText = obj?.type === "text";
+    document.getElementById("vector-text-ops")?.classList.toggle("dimmed", !isText && VectorSelection.getSelectedIds().every((sid) => {
+      const o = DocumentModel.isVectorLayer(layer) ? VectorModel.findObject(layer, sid) : null;
+      return o?.type !== "text";
+    }));
+    document.getElementById("vector-align-ops").classList.toggle("dimmed", VectorSelection.getSelectedIds().length < 2);
+    document.querySelectorAll("#vector-align-ops [data-distribute]").forEach((btn) => {
+      btn.disabled = VectorSelection.getSelectedIds().length < 3;
+    });
+    vectorInspectorSilent = false;
+    syncShadowUi();
+  }
+
+  function updateFillInspectorVisibility() {
+    const type = document.getElementById("vec-fill-type")?.value || "none";
+    document.getElementById("vec-fill-solid-wrap")?.classList.toggle("hidden", type !== "solid");
+    document.getElementById("vec-fill-gradient-wrap")?.classList.toggle("hidden", type !== "linear" && type !== "radial");
+    document.getElementById("vec-fill-angle-wrap")?.classList.toggle("hidden", type !== "linear");
+  }
+
+  function fillFromInspector() {
+    const type = document.getElementById("vec-fill-type").value;
+    if (type === "none") return null;
+    if (type === "solid") return document.getElementById("vec-fill").value;
+    const a = document.getElementById("vec-fill-a").value;
+    const b = document.getElementById("vec-fill-b").value;
+    if (type === "radial") return VectorModel.makeRadialFill(a, b);
+    const angle = +document.getElementById("vec-fill-angle").value || 90;
+    return VectorModel.makeLinearFill(a, b, angle);
+  }
+
+  function setupVectorPanel() {
+    VectorTools.setInspectorSync(syncVectorInspector);
+
+    const apply = (props) => {
+      if (vectorInspectorSilent) return;
+      VectorTools.applyAppearanceToSelection(getAppContext(), props);
+      syncVectorInspector();
+    };
+
+    document.getElementById("vec-stroke").addEventListener("input", (e) => {
+      document.getElementById("vec-stroke-none").checked = false;
+      apply({ stroke: e.target.value });
+    });
+    document.getElementById("vec-stroke-none").addEventListener("change", (e) => {
+      apply({ stroke: e.target.checked ? null : document.getElementById("vec-stroke").value });
+    });
+    document.getElementById("vec-fill-type").addEventListener("change", () => {
+      updateFillInspectorVisibility();
+      apply({ fill: fillFromInspector() });
+    });
+    document.getElementById("vec-fill").addEventListener("input", () => {
+      apply({ fill: fillFromInspector() });
+    });
+    document.getElementById("vec-fill-a").addEventListener("input", () => apply({ fill: fillFromInspector() }));
+    document.getElementById("vec-fill-b").addEventListener("input", () => apply({ fill: fillFromInspector() }));
+    document.getElementById("vec-fill-angle").addEventListener("input", (e) => {
+      document.getElementById("vec-fill-angle-val").textContent = e.target.value;
+    });
+    document.getElementById("vec-fill-angle").addEventListener("change", () => {
+      apply({ fill: fillFromInspector() });
+    });
+    document.getElementById("vec-stroke-width").addEventListener("change", (e) => {
+      document.getElementById("vec-stroke-width-val").textContent = e.target.value;
+      apply({ strokeWidth: +e.target.value });
+    });
+    document.getElementById("vec-stroke-width").addEventListener("input", (e) => {
+      document.getElementById("vec-stroke-width-val").textContent = e.target.value;
+    });
+    document.getElementById("vec-stroke-profile").addEventListener("change", (e) => {
+      toolOptions.strokeProfile = e.target.value;
+      apply({ strokeProfile: e.target.value });
+    });
+    document.getElementById("vec-opacity").addEventListener("change", (e) => {
+      document.getElementById("vec-opacity-val").textContent = e.target.value;
+      apply({ opacity: +e.target.value / 100 });
+    });
+    document.getElementById("vec-opacity").addEventListener("input", (e) => {
+      document.getElementById("vec-opacity-val").textContent = e.target.value;
+    });
+    document.getElementById("vec-linecap").addEventListener("change", (e) => apply({ strokeLinecap: e.target.value }));
+    document.getElementById("vec-linejoin").addEventListener("change", (e) => apply({ strokeLinejoin: e.target.value }));
+    document.getElementById("vec-dash").addEventListener("change", (e) => {
+      apply({ dash: e.target.value === "dashed" ? [8, 6] : null });
+    });
+
+    document.getElementById("vec-bool-union").addEventListener("click", () => VectorTools.booleanSelection(getAppContext(), "union"));
+    document.getElementById("vec-bool-subtract").addEventListener("click", () => VectorTools.booleanSelection(getAppContext(), "subtract"));
+    document.getElementById("vec-bool-intersect").addEventListener("click", () => VectorTools.booleanSelection(getAppContext(), "intersect"));
+    document.getElementById("vec-bool-exclude").addEventListener("click", () => VectorTools.booleanSelection(getAppContext(), "exclude"));
+
+    document.querySelectorAll("[data-align]").forEach((btn) => {
+      btn.addEventListener("click", () => VectorTools.alignSelection(getAppContext(), btn.dataset.align));
+    });
+    document.querySelectorAll("[data-distribute]").forEach((btn) => {
+      btn.addEventListener("click", () => VectorTools.distributeSelection(getAppContext(), btn.dataset.distribute));
+    });
+
+    const snap = VectorTools.getSnapOpts();
+    document.getElementById("vec-snap-grid").checked = !!snap.grid;
+    document.getElementById("vec-snap-objects").checked = !!snap.objects;
+    document.getElementById("vec-snap-grid").addEventListener("change", (e) => {
+      snap.grid = e.target.checked;
+    });
+    document.getElementById("vec-snap-objects").addEventListener("change", (e) => {
+      snap.objects = e.target.checked;
+    });
+    const snapGuidesEl = document.getElementById("vec-snap-guides");
+    if (snapGuidesEl) {
+      snapGuidesEl.checked = snap.guides !== false;
+      snapGuidesEl.addEventListener("change", (e) => {
+        snap.guides = e.target.checked;
+      });
+    }
+
+    document.getElementById("vec-dup").addEventListener("click", () => VectorTools.duplicateSelection(getAppContext()));
+    document.getElementById("vec-copy").addEventListener("click", () => VectorTools.copySelection(getAppContext()));
+    document.getElementById("vec-paste").addEventListener("click", () => VectorTools.pasteClipboard(getAppContext()));
+    document.getElementById("vec-z-front").addEventListener("click", () => VectorTools.reorderSelection(getAppContext(), "front"));
+    document.getElementById("vec-z-forward").addEventListener("click", () => VectorTools.reorderSelection(getAppContext(), "forward"));
+    document.getElementById("vec-z-backward").addEventListener("click", () => VectorTools.reorderSelection(getAppContext(), "backward"));
+    document.getElementById("vec-z-back").addEventListener("click", () => VectorTools.reorderSelection(getAppContext(), "back"));
+    document.getElementById("vec-group")?.addEventListener("click", () => VectorTools.groupSelection(getAppContext()));
+    document.getElementById("vec-ungroup")?.addEventListener("click", () => VectorTools.ungroupSelection(getAppContext()));
+    document.getElementById("vec-generate-abstract")?.addEventListener("click", generateVectorAbstract);
+    document.getElementById("vec-generate-geometric")?.addEventListener("click", generateVectorGeometric);
+    document.getElementById("vec-generate-graffiti")?.addEventListener("click", generateVectorGraffiti);
+    document.getElementById("vec-generate-wildstyle")?.addEventListener("click", generateVectorWildstyle);
+
+    const applyText = (props) => {
+      if (vectorInspectorSilent) return;
+      VectorTools.applyTextPropsToSelection(getAppContext(), props);
+      syncVectorInspector();
+    };
+    document.getElementById("vec-text-weight")?.addEventListener("change", (e) => applyText({ fontWeight: e.target.value }));
+    document.getElementById("vec-text-align")?.addEventListener("change", (e) => applyText({ textAlign: e.target.value }));
+    document.getElementById("vec-text-family")?.addEventListener("change", (e) => applyText({ fontFamily: e.target.value }));
+    document.getElementById("vec-text-path-offset")?.addEventListener("input", (e) => {
+      document.getElementById("vec-text-path-offset-val").textContent = e.target.value;
+    });
+    document.getElementById("vec-text-path-offset")?.addEventListener("change", (e) => {
+      applyText({ pathOffset: +e.target.value });
+    });
+    document.getElementById("vec-text-edit")?.addEventListener("click", () => {
+      const layer = DocumentModel.getActiveLayer(doc);
+      const id = VectorSelection.getPrimaryId();
+      const obj = DocumentModel.isVectorLayer(layer) && id ? VectorModel.findObject(layer, id) : null;
+      if (obj?.type === "text") VectorTools.editSelectedText(getAppContext(), obj);
+    });
+    document.getElementById("vec-text-attach")?.addEventListener("click", () => VectorTools.attachTextToPath(getAppContext()));
+    document.getElementById("vec-text-detach")?.addEventListener("click", () => VectorTools.detachTextFromPath(getAppContext()));
   }
 
   function updateSelectionActions() {
@@ -623,12 +1516,19 @@ const App = (() => {
     document.getElementById("selection-crop-layer").disabled = !showCrop;
     document.getElementById("btn-crop-canvas").disabled = !showCrop;
     document.getElementById("btn-crop-layer").disabled = !showCrop;
+    document.getElementById("opt-selection-transform-wrap")?.classList.toggle("hidden", !showFloating);
+    syncSelTransformFields();
+    syncShadowUi();
     updateStatus();
   }
 
   function updateToolOptionsPanel() {
     const abstract = ["kaleidoscope", "gradient-flow", "noise-smear", "flow-field", "fractal", "echo-trail"];
-    const shapes = ["line", "rect", "ellipse"];
+    const shapes = [
+      "line", "rect", "ellipse",
+      "vector-rect", "vector-roundrect", "vector-bezier", "vector-ellipse",
+      "vector-polygon", "vector-star", "vector-regpoly",
+    ];
     document.getElementById("opt-kaleidoscope-wrap").classList.toggle("hidden", activeTool !== "kaleidoscope");
     const fillTools = activeTool === "fill" || activeTool === "clear-fill";
     document.getElementById("opt-fill-tolerance-wrap").classList.toggle("hidden", !fillTools && activeTool !== "select");
@@ -640,6 +1540,10 @@ const App = (() => {
     );
     document.getElementById("opt-noise-wrap").classList.toggle("hidden", activeTool !== "noise-smear");
     document.getElementById("opt-shape-fill-wrap").classList.toggle("hidden", !shapes.includes(activeTool));
+    document.getElementById("opt-vec-corner-wrap").classList.toggle("hidden", activeTool !== "vector-roundrect");
+    document.getElementById("opt-vec-star-tips-wrap").classList.toggle("hidden", activeTool !== "vector-star");
+    document.getElementById("opt-vec-poly-sides-wrap").classList.toggle("hidden", activeTool !== "vector-regpoly");
+    document.getElementById("opt-vec-pencil-smooth-wrap").classList.toggle("hidden", activeTool !== "vector-pencil");
     document.getElementById("opt-wet-blend-wrap").classList.toggle("hidden", activeTool !== "gradient-flow");
     document.getElementById("opt-mix-strength-wrap").classList.toggle("hidden", activeTool !== "color-mixer");
     document.getElementById("opt-mix-hint").classList.toggle("hidden", activeTool !== "color-mixer");
@@ -670,7 +1574,7 @@ const App = (() => {
     const sy = e.clientY - rect.top;
     const docPt = CanvasViewport.screenToDoc(sx, sy);
     const pressure = e.pressure > 0 ? e.pressure : 1;
-    return { docX: docPt.x, docY: docPt.y, altKey: e.altKey, shiftKey: e.shiftKey, button: e.button, pressure };
+    return { docX: docPt.x, docY: docPt.y, altKey: e.altKey, shiftKey: e.shiftKey, button: e.button, pressure, detail: e.detail || 1 };
   }
 
   function onPointerDown(e) {
@@ -683,9 +1587,16 @@ const App = (() => {
     displayCanvas.setPointerCapture(e.pointerId);
     const ev = eventToDoc(e);
     lastPressure = ev.pressure || 1;
-    if (SelectionManager.handlePointerDown(ev, getAppContext())) return;
-    const layer = DocumentModel.getActiveLayer(doc);
+    // Alt+click near a guide to drag it (avoids stealing paint/select hits)
+    if (ev.altKey && GuidesManager.tryPointerDownOnGuide(ev.docX, ev.docY)) return;
+    if (!VECTOR_TOOLS.has(activeTool) && SelectionManager.handlePointerDown(ev, getAppContext())) return;
+    let layer = DocumentModel.getActiveLayer(doc);
     const tool = tools[activeTool];
+    if (tool && !VECTOR_TOOLS.has(activeTool) && DocumentModel.isVectorLayer(layer)) {
+      window.alert("Switch to a raster layer (or add one with +) to use paint tools. Vector tools are in the Vector section.");
+      pointerDown = false;
+      return;
+    }
     if (tool && tool.onPointerDown) {
       tool.onPointerDown(layer.getCtx(), ev, getAppContext());
     }
@@ -728,24 +1639,28 @@ const App = (() => {
     window.addEventListener("keydown", (e) => {
       if (e.target.matches("input, textarea, select")) return;
       if (e.code === "Space") { spaceHeld = true; e.preventDefault(); }
+      if (VectorTools.handleKey(e, getAppContext())) return;
       if (e.ctrlKey || e.metaKey) {
         if (e.key === "z") { e.preventDefault(); undo(); }
         if (e.key === "y") { e.preventDefault(); redo(); }
         if (e.key === "s") { e.preventDefault(); IO.saveProject(doc); }
         if (e.key === "o") { e.preventDefault(); document.getElementById("file-open").click(); }
-        if (e.key === "c" && SelectionManager.hasFloating()) {
+        if (e.key === "c" && SelectionManager.hasFloating() && !VectorSelection.getSelectedIds().length) {
           e.preventDefault();
           SelectionManager.copyToClipboard(getAppContext());
           updateSelectionActions();
         }
-        if (e.key === "v" && SelectionManager.hasClipboard()) {
+        if (e.key === "v" && SelectionManager.hasClipboard() && !VectorTools.hasClipboard()) {
           e.preventDefault();
           SelectionManager.pasteFromClipboard(getAppContext());
           updateSelectionActions();
         }
       }
-      const shortcuts = { b: "brush", e: "eraser", g: "fill", t: "clear-fill", i: "eyedropper", p: "pencil", m: "move", s: "select" };
-      if (shortcuts[e.key]) setTool(shortcuts[e.key]);
+      const shortcuts = {
+        b: "brush", e: "eraser", g: "fill", t: "clear-fill", i: "eyedropper",
+        p: "pencil", m: "move", s: "select", n: "vector-pen", v: "vector-select", a: "vector-node",
+      };
+      if (!e.ctrlKey && !e.metaKey && shortcuts[e.key]) setTool(shortcuts[e.key]);
       if (e.key === "Enter" && SelectionManager.hasFloating()) {
         e.preventDefault();
         SelectionManager.commit(getAppContext());
@@ -776,6 +1691,10 @@ const App = (() => {
   function applyLayerEdit(editFn) {
     const layer = DocumentModel.getActiveLayer(doc);
     if (layer.locked) return;
+    if (DocumentModel.isVectorLayer(layer)) {
+      window.alert("This filter works on raster layers. Select a raster layer, or merge the vector layer down first.");
+      return;
+    }
     History.beginStroke(doc, layer.id, DocumentModel.snapshotLayer(layer));
     editFn(layer);
     History.commitStroke(doc);
@@ -790,8 +1709,12 @@ const App = (() => {
       case "add":
         DocumentModel.addLayer(doc);
         break;
+      case "add-vector":
+        DocumentModel.addVectorLayer(doc);
+        break;
       case "remove":
         DocumentModel.removeLayer(doc, active.id);
+        VectorTools.setSelectedId(null);
         break;
       case "up":
         DocumentModel.moveLayer(doc, active.id, 1);
@@ -805,6 +1728,54 @@ const App = (() => {
       case "merge":
         DocumentModel.mergeDown(doc, active.id);
         break;
+      case "rasterize": {
+        if (!DocumentModel.isVectorLayer(active)) {
+          window.alert("Select a vector layer to rasterize.");
+          return;
+        }
+        if (active.locked) return;
+        const before = DocumentModel.snapshotLayer(active);
+        History.beginStroke(doc, active.id, before);
+        DocumentModel.rasterizeVectorLayer(doc, active.id);
+        History.commitStroke(doc);
+        VectorTools.setSelectedId(null);
+        break;
+      }
+      case "trace": {
+        if (DocumentModel.isVectorLayer(active)) {
+          window.alert("Select a raster layer to trace into vectors.\n\nTip: paint on a transparent layer (not the solid Background), then Trace.");
+          return;
+        }
+        if (active.locked) return;
+        const primary = Palette.getState().primary;
+        const secondary = Palette.getState().secondary;
+        const layer = DocumentModel.traceRasterLayer(doc, active.id, {
+          threshold: 12,
+          contrast: 18,
+          sampleStep: 2,
+          simplify: 2,
+          maxContours: 80,
+          minArea: 40,
+          style: {
+            stroke: primary,
+            // undefined → auto sample fill from the bitmap; null only if user wants outlines
+            fill: toolOptions.shapeFill ? secondary : undefined,
+            strokeWidth: 1.5,
+          },
+        });
+        if (!layer) {
+          window.alert(
+            "Nothing to trace on this layer.\n\n" +
+              "• Use a raster layer with paint (brush/shapes) on a transparent background\n" +
+              "• Solid white Background usually has no “ink” to find\n" +
+              "• Soft/very light strokes may need higher opacity"
+          );
+          return;
+        }
+        const count = (layer.objects || []).length;
+        statusEl.textContent = `Traced ${count} shape${count === 1 ? "" : "s"} → ${layer.name}`;
+        break;
+      }
       case "blur-layer":
         applyLayerEdit((layer) => LayerTransform.blurLayer(layer, toolOptions.blurAmount || 8));
         return;
@@ -815,6 +1786,15 @@ const App = (() => {
             colorKeep: toolOptions.sketchColorKeep,
           });
         });
+        return;
+      case "adjust-levels":
+        openAdjustDialog("levels");
+        return;
+      case "adjust-curves":
+        openAdjustDialog("curves");
+        return;
+      case "adjust-hue":
+        openAdjustDialog("hue");
         return;
       case "flip-h":
         applyLayerEdit((layer) => LayerTransform.flipLayer(layer, true));
@@ -861,6 +1841,10 @@ const App = (() => {
       requestRender: render,
       onHistoryChange: updateUI,
       onSelectionChange: updateSelectionActions,
+      updateUI,
+      setStatus: (msg) => {
+        if (statusEl && msg) statusEl.textContent = msg;
+      },
     };
   }
 
@@ -870,10 +1854,13 @@ const App = (() => {
     if (generatorPreview.active && generatorPreview.canvas) {
       displayCanvas.getContext("2d").drawImage(generatorPreview.canvas, 0, 0);
     }
+    const overlayCtx = displayCanvas.getContext("2d");
+    GuidesManager.drawGuidesOverlay(overlayCtx, doc.width, doc.height);
     if (SelectionManager.isActive()) {
-      const ctx = displayCanvas.getContext("2d");
-      SelectionManager.drawOverlay(ctx);
+      SelectionManager.drawOverlay(overlayCtx);
     }
+    VectorTools.drawOverlay(overlayCtx, getAppContext());
+    GuidesManager.drawRulers(doc.width, doc.height);
   }
 
   function updateUI() {
@@ -882,6 +1869,7 @@ const App = (() => {
     LayersPanel.render(doc);
     updateToolOptionsPanel();
     updateGeneratorPreviewUI();
+    syncVectorInspector();
     updateStatus();
   }
 
